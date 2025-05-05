@@ -11,7 +11,7 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
     <div className="hilite-card mb-4">
       <div className="relative">
         {/* Cover Photo */}
-        <div className="h-32 md:h-48 rounded-t-lg bg-gradient-to-r from-hilite-light-purple to-hilite-blue"></div>
+        <div className="h-32 md:h-48 rounded-t-lg bg-gradient-to-r from-hilite-dark-red to-hilite-light-blue"></div>
         
         {/* Profile Picture */}
         <div className="absolute -bottom-12 left-4 md:left-8">
@@ -24,7 +24,7 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
               />
             </div>
             {isCurrentUser && (
-              <button className="absolute bottom-0 right-0 bg-hilite-purple text-white p-1 rounded-full">
+              <button className="absolute bottom-0 right-0 bg-hilite-dark-red text-white p-1 rounded-full">
                 <Edit className="h-4 w-4" />
               </button>
             )}
@@ -51,7 +51,7 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
           <button className="text-muted-foreground hover:text-foreground">
             <Volume2 className="h-4 w-4" />
           </button>
-          <div className="px-2 py-1 text-xs bg-hilite-light-purple text-hilite-purple rounded-full">
+          <div className="px-2 py-1 text-xs bg-hilite-light-blue text-hilite-dark-red rounded-full">
             Open to Work
           </div>
         </div>
@@ -65,11 +65,11 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
           </div>
           <div className="flex items-center">
             <Briefcase className="h-4 w-4 mr-1" />
-            <Link to="/company/techflow" className="hover:text-hilite-purple">TechFlow Inc</Link>
+            <Link to="/company/techflow" className="hover:text-hilite-dark-red">TechFlow Inc</Link>
           </div>
           <div className="flex items-center">
             <GraduationCap className="h-4 w-4 mr-1" />
-            <Link to="/school/stanford" className="hover:text-hilite-purple">Stanford University</Link>
+            <Link to="/school/stanford" className="hover:text-hilite-dark-red">Stanford University</Link>
             <span className="ml-2 px-2 py-0.5 bg-accent rounded-full text-xs font-mono">Currently Attending</span>
           </div>
         </div>

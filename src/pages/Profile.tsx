@@ -4,6 +4,7 @@ import ProfileHeader from "@/components/profile/ProfileHeader";
 import AboutSection from "@/components/profile/AboutSection";
 import ExperienceSection from "@/components/profile/ExperienceSection";
 import ProjectsSection from "@/components/profile/ProjectsSection";
+import EducationSection from "@/components/profile/EducationSection";
 import FeaturedSection from "@/components/profile/FeaturedSection";
 import UserClubs from "@/components/profile/UserClubs";
 import PostCard from "@/components/post/PostCard";
@@ -55,6 +56,18 @@ export default function Profile() {
               <AboutSection isCurrentUser={isCurrentUser} />
               <UserClubs isCurrentUser={isCurrentUser} />
               <FeaturedSection isCurrentUser={isCurrentUser} />
+              
+              {/* Add Education Section with small "Currently Attending" info */}
+              <div className="hilite-card">
+                <div className="flex items-center mb-2">
+                  <h3 className="text-lg font-bold">Currently Attending</h3>
+                </div>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <span className="font-medium">Stanford University</span>
+                  <span className="mx-2">•</span>
+                  <span>Master of Computer Science</span>
+                </div>
+              </div>
             </div>
             
             {/* Main content */}

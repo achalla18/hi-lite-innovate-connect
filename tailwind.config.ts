@@ -67,13 +67,15 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				hilite: {
-					purple: '#9b87f5',
-					'light-purple': '#E5DEFF',
+					purple: '#8B0000', // Changed from purple to dark red
+					'light-purple': '#ADD8E6', // Changed from light purple to light blue
 					blue: '#D3E4FD',
 					'sky-blue': '#33C3F0',
 					gray: '#8E9196',
 					'light-gray': '#F1F1F1',
 					'cool-gray': '#aaadb0',
+					'dark-red': '#8B0000', // Added dark red
+					'light-blue': '#ADD8E6', // Added light blue
 				}
 			},
 			borderRadius: {
