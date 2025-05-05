@@ -1,9 +1,13 @@
 
 import { useState } from "react";
-import { Image, Link, FileText, BarChart4, X } from "lucide-react";
+import { Image, Link, FileText, BarChart4, X, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export default function CreatePostForm() {
+interface CreatePostFormProps {
+  clubId?: string;
+}
+
+export default function CreatePostForm({ clubId }: CreatePostFormProps) {
   const [content, setContent] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,8 +46,10 @@ export default function CreatePostForm() {
       setIsSubmitting(false);
       handleClose();
       toast({
-        title: "Post created",
-        description: "Your post has been published successfully.",
+        title: clubId ? "Club post created" : "Post created",
+        description: clubId 
+          ? "Your post has been published to the club." 
+          : "Your post has been published successfully.",
       });
     }, 1000);
   };
@@ -51,7 +57,7 @@ export default function CreatePostForm() {
   return (
     <div className="hilite-card mb-4">
       <form onSubmit={handleSubmit}>
-        <div className="flex space-x-3">
+        <div className="flex space-x-3 p-4">
           <div className="h-10 w-10 rounded-full bg-hilite-gray overflow-hidden">
             <img
               src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop"
@@ -62,7 +68,7 @@ export default function CreatePostForm() {
           
           <div className="flex-1">
             <textarea
-              placeholder="What would you like to share?"
+              placeholder={clubId ? "Share something with the club..." : "What would you like to share?"}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onFocus={handleFocus}
@@ -137,6 +143,13 @@ export default function CreatePostForm() {
             )}
           </div>
         </div>
+        
+        {clubId && (
+          <div className="px-4 pb-3 border-t border-border pt-3 flex items-center text-sm text-muted-foreground">
+            <Users className="h-4 w-4 mr-1" />
+            <span>This post will only be visible to club members</span>
+          </div>
+        )}
       </form>
     </div>
   );

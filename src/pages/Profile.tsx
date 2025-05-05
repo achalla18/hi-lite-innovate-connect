@@ -5,6 +5,7 @@ import AboutSection from "@/components/profile/AboutSection";
 import ExperienceSection from "@/components/profile/ExperienceSection";
 import EducationSection from "@/components/profile/EducationSection";
 import FeaturedSection from "@/components/profile/FeaturedSection";
+import UserClubs from "@/components/profile/UserClubs";
 import PostCard from "@/components/post/PostCard";
 
 const mockPosts = [
@@ -52,6 +53,7 @@ export default function Profile() {
             {/* Left sidebar with profile info */}
             <div className="space-y-4">
               <AboutSection isCurrentUser={isCurrentUser} />
+              <UserClubs isCurrentUser={isCurrentUser} />
               <FeaturedSection isCurrentUser={isCurrentUser} />
             </div>
             
