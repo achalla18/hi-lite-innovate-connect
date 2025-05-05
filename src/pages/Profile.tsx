@@ -3,7 +3,7 @@ import Navbar from "@/components/layout/Navbar";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import AboutSection from "@/components/profile/AboutSection";
 import ExperienceSection from "@/components/profile/ExperienceSection";
-import EducationSection from "@/components/profile/EducationSection";
+import ProjectsSection from "@/components/profile/ProjectsSection";
 import FeaturedSection from "@/components/profile/FeaturedSection";
 import UserClubs from "@/components/profile/UserClubs";
 import PostCard from "@/components/post/PostCard";
@@ -60,7 +60,7 @@ export default function Profile() {
             {/* Main content */}
             <div className="lg:col-span-2 space-y-4">
               <ExperienceSection isCurrentUser={isCurrentUser} />
-              <EducationSection isCurrentUser={isCurrentUser} />
+              <ProjectsSection isCurrentUser={isCurrentUser} />
               
               <h2 className="text-xl font-bold mt-6 mb-4">Posts</h2>
               {mockPosts.map(post => (

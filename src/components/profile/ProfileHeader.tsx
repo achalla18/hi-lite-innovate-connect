@@ -70,6 +70,7 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
           <div className="flex items-center">
             <GraduationCap className="h-4 w-4 mr-1" />
             <Link to="/school/stanford" className="hover:text-hilite-purple">Stanford University</Link>
+            <span className="ml-2 px-2 py-0.5 bg-accent rounded-full text-xs font-mono">Currently Attending</span>
           </div>
         </div>
 
