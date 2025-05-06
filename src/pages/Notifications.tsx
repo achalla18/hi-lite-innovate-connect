@@ -33,23 +33,28 @@ export default function Notifications() {
       
       const result: Notification[] = [];
       
-      // Get profile views
-      const { data: profileViews } = await supabase
+      // Get profile views with fixed join relationship
+      const { data: viewsData } = await supabase
         .from('profile_views')
-        .select('*, profiles!profile_views_viewer_id_fkey(*)')
+        .select(`
+          id, 
+          viewed_at,
+          viewer_id,
+          viewers:profiles(name, avatar_url)
+        `)
         .eq('profile_id', user.id)
         .order('viewed_at', { ascending: false })
         .limit(10);
         
-      if (profileViews) {
-        const viewNotifications: Notification[] = profileViews
-          .filter(view => view.viewer_id && view.viewer_id !== user.id)
+      if (viewsData) {
+        const viewNotifications: Notification[] = viewsData
+          .filter(view => view.viewer_id && view.viewer_id !== user.id && view.viewers)
           .map(view => ({
             id: view.id,
             type: "profile_view" as NotificationType,
             actorId: view.viewer_id || '',
-            actorName: view.profiles?.name || 'Someone',
-            actorAvatar: view.profiles?.avatar_url || '/placeholder.svg',
+            actorName: view.viewers?.name || 'Someone',
+            actorAvatar: view.viewers?.avatar_url || '/placeholder.svg',
             timestamp: new Date(view.viewed_at),
             read: true,
           }));
@@ -57,20 +62,25 @@ export default function Notifications() {
         result.push(...viewNotifications);
       }
       
-      // Get connection requests
-      const { data: connections } = await supabase
+      // Get connection requests with fixed join relationship
+      const { data: connectionsData } = await supabase
         .from('connections')
-        .select('*, profiles(*)')
+        .select(`
+          id,
+          created_at,
+          user_id,
+          requesters:profiles(name, avatar_url)
+        `)
         .eq('connected_user_id', user.id)
         .order('created_at', { ascending: false });
         
-      if (connections) {
-        const connectionNotifications: Notification[] = connections.map(connection => ({
+      if (connectionsData) {
+        const connectionNotifications: Notification[] = connectionsData.map(connection => ({
           id: connection.id,
           type: "connection" as NotificationType,
           actorId: connection.user_id,
-          actorName: connection.profiles?.name || 'Someone',
-          actorAvatar: connection.profiles?.avatar_url || '/placeholder.svg',
+          actorName: connection.requesters?.name || 'Someone',
+          actorAvatar: connection.requesters?.avatar_url || '/placeholder.svg',
           timestamp: new Date(connection.created_at),
           read: true,
         }));
@@ -87,20 +97,27 @@ export default function Notifications() {
       if (userPosts && userPosts.length > 0) {
         const postIds = userPosts.map(post => post.id);
         
-        const { data: postLikes } = await supabase
+        // Get post likes with fixed join relationship
+        const { data: likesData } = await supabase
           .from('post_likes')
-          .select('*, profiles!post_likes_user_id_fkey(*)')
+          .select(`
+            id,
+            created_at,
+            post_id,
+            user_id,
+            likers:profiles(name, avatar_url)
+          `)
           .in('post_id', postIds)
           .neq('user_id', user.id)
           .order('created_at', { ascending: false });
           
-        if (postLikes) {
-          const likeNotifications: Notification[] = postLikes.map(like => ({
+        if (likesData) {
+          const likeNotifications: Notification[] = likesData.map(like => ({
             id: like.id,
             type: "post_like" as NotificationType,
             actorId: like.user_id,
-            actorName: like.profiles?.name || 'Someone',
-            actorAvatar: like.profiles?.avatar_url || '/placeholder.svg',
+            actorName: like.likers?.name || 'Someone',
+            actorAvatar: like.likers?.avatar_url || '/placeholder.svg',
             targetId: like.post_id,
             timestamp: new Date(like.created_at),
             read: true,
@@ -109,21 +126,28 @@ export default function Notifications() {
           result.push(...likeNotifications);
         }
         
-        // Get post comments
-        const { data: postComments } = await supabase
+        // Get post comments with fixed join relationship
+        const { data: commentsData } = await supabase
           .from('post_comments')
-          .select('*, profiles!post_comments_user_id_fkey(*)')
+          .select(`
+            id,
+            created_at,
+            post_id,
+            user_id,
+            content,
+            commenters:profiles(name, avatar_url)
+          `)
           .in('post_id', postIds)
           .neq('user_id', user.id)
           .order('created_at', { ascending: false });
           
-        if (postComments) {
-          const commentNotifications: Notification[] = postComments.map(comment => ({
+        if (commentsData) {
+          const commentNotifications: Notification[] = commentsData.map(comment => ({
             id: comment.id,
             type: "post_comment" as NotificationType,
             actorId: comment.user_id,
-            actorName: comment.profiles?.name || 'Someone',
-            actorAvatar: comment.profiles?.avatar_url || '/placeholder.svg',
+            actorName: comment.commenters?.name || 'Someone',
+            actorAvatar: comment.commenters?.avatar_url || '/placeholder.svg',
             targetId: comment.post_id,
             timestamp: new Date(comment.created_at),
             content: comment.content,

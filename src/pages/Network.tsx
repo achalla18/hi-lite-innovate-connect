@@ -174,7 +174,7 @@ export default function Network() {
   });
 
   // Get user suggestions
-  const { data: suggestions, isLoading: isLoadingSuggestions } = useQuery({
+  const { data: suggestions, isLoading: isLoadingSuggestions, refetch: refetchSuggestions } = useQuery({
     queryKey: ['network-suggestions', user?.id],
     queryFn: async () => {
       if (!user) return [];
