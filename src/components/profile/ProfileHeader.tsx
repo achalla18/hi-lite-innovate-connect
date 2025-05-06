@@ -1,12 +1,16 @@
 
 import { Link } from "react-router-dom";
 import { Edit, MapPin, Briefcase, GraduationCap, Volume2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface ProfileHeaderProps {
   isCurrentUser?: boolean;
 }
 
 export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderProps) {
+  const { profile } = useAuth();
+  
   return (
     <div className="hilite-card mb-4">
       <div className="relative">
@@ -16,13 +20,15 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
         {/* Profile Picture */}
         <div className="absolute -bottom-12 left-4 md:left-8">
           <div className="relative">
-            <div className="h-24 w-24 rounded-full border-4 border-background overflow-hidden bg-hilite-gray">
-              <img
-                src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop"
-                alt="Profile"
-                className="h-full w-full object-cover"
+            <Avatar className="h-24 w-24 border-4 border-background">
+              <AvatarImage 
+                src={profile?.avatar_url || "/placeholder.svg"} 
+                alt={profile?.name || "Profile"} 
               />
-            </div>
+              <AvatarFallback className="text-xl">
+                {profile?.name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
             {isCurrentUser && (
               <button className="absolute bottom-0 right-0 bg-hilite-dark-red text-white p-1 rounded-full">
                 <Edit className="h-4 w-4" />
@@ -34,7 +40,7 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
         {/* Action buttons */}
         {isCurrentUser ? (
           <div className="absolute top-4 right-4 space-x-2">
-            <button className="hilite-btn-secondary text-sm">Edit Profile</button>
+            <Link to="/profile-setup" className="hilite-btn-secondary text-sm">Edit Profile</Link>
           </div>
         ) : (
           <div className="absolute top-4 right-4 space-x-2 flex">
@@ -47,7 +53,7 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
       {/* Profile Info */}
       <div className="mt-14 md:mt-16 px-4">
         <div className="flex items-center space-x-2">
-          <h1 className="text-2xl font-bold">Jane Thompson</h1>
+          <h1 className="text-2xl font-bold">{profile?.name || "Complete Your Profile"}</h1>
           <button className="text-muted-foreground hover:text-foreground">
             <Volume2 className="h-4 w-4" />
           </button>
@@ -56,13 +62,16 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
           </div>
         </div>
 
-        <h2 className="text-lg text-muted-foreground">Full-Stack Developer & UI/UX Designer</h2>
+        <h2 className="text-lg text-muted-foreground">{profile?.role || "Add your professional headline"}</h2>
         
         <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-          <div className="flex items-center">
-            <MapPin className="h-4 w-4 mr-1" />
-            <span>San Francisco, CA</span>
-          </div>
+          {profile?.location && (
+            <div className="flex items-center">
+              <MapPin className="h-4 w-4 mr-1" />
+              <span>{profile.location}</span>
+            </div>
+          )}
+          
           <div className="flex items-center">
             <Briefcase className="h-4 w-4 mr-1" />
             <Link to="/company/techflow" className="hover:text-hilite-dark-red">TechFlow Inc</Link>

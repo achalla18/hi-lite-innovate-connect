@@ -5,9 +5,11 @@ import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import CreatePostForm from "@/components/post/CreatePostForm";
 import PostCard from "@/components/post/PostCard";
-import UserStats from "@/components/home/UserStats";
-import NetworkSuggestions from "@/components/home/NetworkSuggestions";
 import TrendingTopics from "@/components/home/TrendingTopics";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
 
 export default function Index() {
   const { user } = useAuth();
@@ -19,16 +21,24 @@ export default function Index() {
         .from('posts')
         .select(`
           *,
-          profiles:user_id (name, role, avatar_url),
-          post_likes:id (user_id)
+          profiles:user_id (name, role, avatar_url)
         `)
         .order('created_at', { ascending: false });
         
       if (error) throw error;
+      if (!data) return [];
+      
+      // Get post likes in a separate query
+      const { data: postLikes } = await supabase
+        .from('post_likes')
+        .select('post_id, user_id');
       
       return data.map(post => {
-        // Format post data for PostCard component
-        const isLiked = post.post_likes?.some(like => like.user_id === user?.id) || false;
+        const isLiked = postLikes ? postLikes.some(like => 
+          like.post_id === post.id && like.user_id === user?.id
+        ) : false;
+        
+        const likesCount = postLikes ? postLikes.filter(like => like.post_id === post.id).length : 0;
         
         return {
           id: post.id,
@@ -36,11 +46,11 @@ export default function Index() {
             id: post.user_id,
             name: post.profiles?.name || 'Anonymous',
             role: post.profiles?.role || '',
-            avatarUrl: post.profiles?.avatar_url || ''
+            avatarUrl: post.profiles?.avatar_url || '/placeholder.svg'
           },
           content: post.content,
-          images: post.images,
-          likes: post.post_likes?.length || 0,
+          images: post.images || [],
+          likes: likesCount,
           comments: 0, // We'd need another query to get comment count
           timeAgo: formatTimeAgo(new Date(post.created_at)),
           isLiked
@@ -83,6 +93,24 @@ export default function Index() {
     return 'just now';
   };
 
+  // Get user connections count 
+  const { data: connectionsCount, isLoading: isLoadingConnections } = useQuery({
+    queryKey: ['connectionsCount', user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      
+      const { data, error } = await supabase
+        .from('connections')
+        .select('*')
+        .or(`user_id.eq.${user.id},connected_user_id.eq.${user.id}`)
+        .eq('status', 'accepted');
+        
+      if (error) throw error;
+      return data?.length || 0;
+    },
+    enabled: !!user
+  });
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -91,8 +119,33 @@ export default function Index() {
         <div className="container py-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left Sidebar */}
-            <div className="hidden lg:block">
-              <UserStats hideIfNotAvailable={true} />
+            <div className="hidden lg:block space-y-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl">Your Network</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Connections</span>
+                      <Link to="/connections" className="font-semibold">{connectionsCount || 0}</Link>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Profile Stats</span>
+                      <Link to="/premium" className="text-hilite-dark-red hover:underline inline-flex items-center">
+                        <Sparkles className="h-4 w-4 mr-1" />
+                        Premium
+                      </Link>
+                    </div>
+                    <div className="pt-2">
+                      <Link to="/people">
+                        <Button variant="outline" className="w-full">Grow your network</Button>
+                      </Link>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
               <TrendingTopics />
             </div>
             
@@ -131,11 +184,6 @@ export default function Index() {
                   </p>
                 </div>
               )}
-            </div>
-            
-            {/* Right Sidebar */}
-            <div className="hidden lg:block">
-              <NetworkSuggestions />
             </div>
           </div>
         </div>

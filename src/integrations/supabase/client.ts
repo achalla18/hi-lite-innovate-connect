@@ -6,9 +6,6 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://dnshwngijsnbttiivbbf.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w";
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
-
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,

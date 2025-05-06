@@ -105,8 +105,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       toast({
         title: "Account created",
-        description: "Please check your email to verify your account."
+        description: "Please complete your profile to get started."
       });
+      
+      // Redirect to profile setup after signup
+      if (data.user) {
+        window.location.href = '/profile-setup';
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -135,7 +140,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      window.location.href = '/';
+      // Check if profile is complete, if not redirect to profile setup
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, role')
+        .eq('id', data.user.id)
+        .single();
+        
+      if (!profile || !profile.name || !profile.role) {
+        window.location.href = '/profile-setup';
+      } else {
+        window.location.href = '/';
+      }
     } catch (error: any) {
       toast({
         title: "Login failed",
