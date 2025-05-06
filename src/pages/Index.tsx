@@ -17,41 +17,59 @@ export default function Index() {
   const { data: posts, isLoading } = useQuery({
     queryKey: ['posts'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First, get all posts
+      const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select(`
-          *,
-          profiles:user_id (name, role, avatar_url)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
         
-      if (error) throw error;
-      if (!data) return [];
+      if (postsError) throw postsError;
+      if (!postsData) return [];
+      
+      // Then get user profile data for each post
+      const userIds = [...new Set(postsData.map(post => post.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
       
       // Get post likes in a separate query
       const { data: postLikes } = await supabase
         .from('post_likes')
         .select('post_id, user_id');
+
+      // Get post comments counts
+      const { data: commentsData } = await supabase
+        .from('post_comments')
+        .select('post_id');
       
-      return data.map(post => {
+      // Map posts with author information and like/comment counts
+      return postsData.map(post => {
+        const authorProfile = profilesData?.find(profile => profile.id === post.user_id) || {
+          name: 'Anonymous',
+          role: '',
+          avatar_url: '/placeholder.svg'
+        };
+        
         const isLiked = postLikes ? postLikes.some(like => 
           like.post_id === post.id && like.user_id === user?.id
         ) : false;
         
         const likesCount = postLikes ? postLikes.filter(like => like.post_id === post.id).length : 0;
+        const commentsCount = commentsData ? commentsData.filter(comment => comment.post_id === post.id).length : 0;
         
         return {
           id: post.id,
           author: {
             id: post.user_id,
-            name: post.profiles?.name || 'Anonymous',
-            role: post.profiles?.role || '',
-            avatarUrl: post.profiles?.avatar_url || '/placeholder.svg'
+            name: authorProfile.name || 'Anonymous',
+            role: authorProfile.role || '',
+            avatarUrl: authorProfile.avatar_url || '/placeholder.svg'
           },
           content: post.content,
           images: post.images || [],
           likes: likesCount,
-          comments: 0, // We'd need another query to get comment count
+          comments: commentsCount,
           timeAgo: formatTimeAgo(new Date(post.created_at)),
           isLiked
         };
@@ -128,7 +146,7 @@ export default function Index() {
                   <div className="flex flex-col space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Connections</span>
-                      <Link to="/connections" className="font-semibold">{connectionsCount || 0}</Link>
+                      <Link to="/network" className="font-semibold">{connectionsCount || 0}</Link>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Profile Stats</span>
@@ -138,7 +156,7 @@ export default function Index() {
                       </Link>
                     </div>
                     <div className="pt-2">
-                      <Link to="/people">
+                      <Link to="/network">
                         <Button variant="outline" className="w-full">Grow your network</Button>
                       </Link>
                     </div>

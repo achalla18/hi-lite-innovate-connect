@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
@@ -228,7 +227,13 @@ export default function ClubDetail() {
                 <>
                   {isMember && <CreatePostForm clubId={club.id} />}
                   {mockClubPosts.map(post => (
-                    <PostCard key={post.id} post={post} />
+                    <PostCard key={post.id} post={{
+                      ...post,
+                      author: {
+                        ...post.author,
+                        avatarUrl: post.author.avatarUrl || '/placeholder.svg'
+                      }
+                    }} />
                   ))}
                 </>
               )}

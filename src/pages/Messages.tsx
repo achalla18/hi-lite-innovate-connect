@@ -1,118 +1,144 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
 import { Search, Send, Phone, Video, MoreVertical, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+
+interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+}
+
+interface Conversation {
+  id: string;
+  user: {
+    id: string;
+    name: string;
+    avatarUrl: string;
+    status: 'online' | 'offline';
+  };
+  lastMessage: string;
+  time: string;
+  unread: number;
+}
 
 export default function Messages() {
-  const [selectedConversation, setSelectedConversation] = useState<string | null>("conv1");
+  const { user } = useAuth();
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   
-  // Mock conversations
-  const conversations = [
-    {
-      id: "conv1",
-      user: {
-        id: "user1",
-        name: "Alex Chen",
-        avatarUrl: "https://images.unsplash.com/photo-1500673922987-e212871fec22?w=200&h=200&fit=crop",
-        status: "online"
-      },
-      lastMessage: "Would you like to review my latest PR?",
-      time: "10:32 AM",
-      unread: 2
+  // Fetch user connections
+  const { data: connections } = useQuery({
+    queryKey: ['messageConnections', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      // Get all accepted connections
+      const { data: connectionsData, error } = await supabase
+        .from('connections')
+        .select(`
+          id,
+          user_id,
+          connected_user_id,
+          status
+        `)
+        .or(`user_id.eq.${user.id},connected_user_id.eq.${user.id}`)
+        .eq('status', 'accepted');
+        
+      if (error) throw error;
+      
+      return connectionsData || [];
     },
-    {
-      id: "conv2",
-      user: {
-        id: "user2",
-        name: "Jamie Rodriguez",
-        avatarUrl: "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=200&h=200&fit=crop",
-        status: "offline"
-      },
-      lastMessage: "Thanks for the feedback!",
-      time: "Yesterday",
-      unread: 0
+    enabled: !!user
+  });
+  
+  // Get profile data for connections
+  const { data: connectionUsers } = useQuery({
+    queryKey: ['connectionProfiles', connections?.length],
+    queryFn: async () => {
+      if (!connections || connections.length === 0) return [];
+      
+      // Extract user IDs from connections (excluding the current user)
+      const connectionUserIds = connections
+        .map(conn => conn.user_id === user?.id ? conn.connected_user_id : conn.user_id)
+        .filter(id => id !== user?.id);
+        
+      if (connectionUserIds.length === 0) return [];
+      
+      // Get profile data for all connection users
+      const { data: profilesData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', connectionUserIds);
+        
+      if (error) throw error;
+      
+      return profilesData || [];
     },
-    {
-      id: "conv3",
-      user: {
-        id: "user3",
-        name: "Taylor Kim",
-        avatarUrl: "https://images.unsplash.com/photo-1721322800607-8c38375eef04?w=200&h=200&fit=crop",
-        status: "online"
-      },
-      lastMessage: "Let's catch up sometime this week",
-      time: "Monday",
-      unread: 0
+    enabled: !!connections && connections.length > 0
+  });
+  
+  // Combine connection and profile data to create conversations
+  const conversations: Conversation[] = connectionUsers?.map(profile => ({
+    id: profile.id,
+    user: {
+      id: profile.id,
+      name: profile.name || 'User',
+      avatarUrl: profile.avatar_url || '/placeholder.svg',
+      status: Math.random() > 0.5 ? 'online' : 'offline', // Randomize for demo
+    },
+    lastMessage: "Click to start a conversation",
+    time: "Just now",
+    unread: 0
+  })) || [];
+  
+  // Set the first conversation as selected by default
+  useEffect(() => {
+    if (conversations.length > 0 && !selectedConversation) {
+      setSelectedConversation(conversations[0].id);
     }
-  ];
+  }, [conversations, selectedConversation]);
   
-  // Mock messages for selected conversation
-  const messages = {
-    conv1: [
-      {
-        id: "msg1",
-        sender: "other",
-        text: "Hey, I just pushed a new feature and created a PR. Could you take a look when you have a moment?",
-        time: "10:30 AM"
-      },
-      {
-        id: "msg2",
-        sender: "other",
-        text: "Would you like to review my latest PR?",
-        time: "10:32 AM"
-      },
-      {
-        id: "msg3",
-        sender: "self",
-        text: "Sure thing! I'm finishing up something right now, but I'll take a look at your PR in about an hour if that works?",
-        time: "10:35 AM"
-      }
-    ],
-    conv2: [
-      {
-        id: "msg1",
-        sender: "self",
-        text: "Hey Jamie, I took a look at your designs. I think they look great, but I have a few suggestions about the navigation flow.",
-        time: "Yesterday, 3:15 PM"
-      },
-      {
-        id: "msg2",
-        sender: "other",
-        text: "Thanks for the feedback!",
-        time: "Yesterday, 3:30 PM"
-      }
-    ],
-    conv3: [
-      {
-        id: "msg1",
-        sender: "other",
-        text: "Hi! Hope you're doing well. It's been a while since we caught up.",
-        time: "Monday, 2:15 PM"
-      },
-      {
-        id: "msg2",
-        sender: "other",
-        text: "Let's catch up sometime this week",
-        time: "Monday, 2:16 PM"
-      },
-      {
-        id: "msg3",
-        sender: "self",
-        text: "Hey! Great to hear from you. I've been swamped with work, but I'd love to catch up. How about coffee on Thursday?",
-        time: "Monday, 5:22 PM"
-      }
-    ]
-  };
-  
-  const selectedMessages = selectedConversation ? messages[selectedConversation as keyof typeof messages] : [];
+  // Get the selected conversation data
   const selectedConversationData = conversations.find(c => c.id === selectedConversation);
+  
+  // In a real app, we would fetch real messages from a database
+  // For now, we'll generate sample messages based on the selected user
+  const selectedMessages = selectedConversation ? [
+    {
+      id: "msg1",
+      sender: selectedConversation === conversations[0]?.id ? "other" : "self",
+      text: `Hi there! This is a sample message to demonstrate the UI. In a real app, these messages would come from the database.`,
+      time: "10 minutes ago"
+    },
+    {
+      id: "msg2",
+      sender: "self",
+      text: "Hi! This is a demonstration of the messaging interface. Messages are not yet stored in the database.",
+      time: "5 minutes ago"
+    },
+    {
+      id: "msg3",
+      sender: selectedConversation === conversations[0]?.id ? "self" : "other",
+      text: "To build a complete messaging system, we would need to create database tables for storing messages and implement real-time functionality.",
+      time: "Just now"
+    }
+  ] : [];
   
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !selectedConversation) return;
-    // In a real app, this would send the message to the backend
+    
+    // In a real app, we would send the message to the database
+    toast.success("Message functionality will be implemented in the next phase");
     setMessage("");
   };
   
@@ -136,41 +162,49 @@ export default function Messages() {
             </div>
             
             <div className="h-[calc(100vh-15rem)] overflow-y-auto">
-              {conversations.map(conv => (
-                <div
-                  key={conv.id}
-                  onClick={() => setSelectedConversation(conv.id)}
-                  className={`p-3 flex items-center space-x-3 cursor-pointer hover:bg-accent ${selectedConversation === conv.id ? 'bg-accent' : ''}`}
-                >
-                  <div className="relative">
-                    <div className="h-12 w-12 rounded-full bg-hilite-gray overflow-hidden">
-                      <img
-                        src={conv.user.avatarUrl}
-                        alt={conv.user.name}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    {conv.user.status === "online" && (
-                      <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card"></div>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center">
-                      <h3 className="font-bold truncate">{conv.user.name}</h3>
-                      <span className="text-xs text-muted-foreground">{conv.time}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
-                      {conv.unread > 0 && (
-                        <span className="bg-hilite-purple text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                          {conv.unread}
-                        </span>
+              {conversations.length > 0 ? (
+                conversations.map(conv => (
+                  <div
+                    key={conv.id}
+                    onClick={() => setSelectedConversation(conv.id)}
+                    className={`p-3 flex items-center space-x-3 cursor-pointer hover:bg-accent ${selectedConversation === conv.id ? 'bg-accent' : ''}`}
+                  >
+                    <div className="relative">
+                      <div className="h-12 w-12 rounded-full bg-hilite-gray overflow-hidden">
+                        <img
+                          src={conv.user.avatarUrl}
+                          alt={conv.user.name}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      {conv.user.status === "online" && (
+                        <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card"></div>
                       )}
                     </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold truncate">{conv.user.name}</h3>
+                        <span className="text-xs text-muted-foreground">{conv.time}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
+                        {conv.unread > 0 && (
+                          <span className="bg-hilite-purple text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {conv.unread}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="p-6 text-center">
+                  <p className="text-muted-foreground">
+                    Connect with other users to start messaging
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
           

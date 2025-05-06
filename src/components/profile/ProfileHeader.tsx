@@ -6,9 +6,13 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface ProfileHeaderProps {
   isCurrentUser?: boolean;
+  connectionsData?: {
+    total: number;
+    thisMonth: number;
+  };
 }
 
-export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderProps) {
+export default function ProfileHeader({ isCurrentUser = false, connectionsData }: ProfileHeaderProps) {
   const { profile } = useAuth();
   
   return (
@@ -85,10 +89,10 @@ export default function ProfileHeader({ isCurrentUser = false }: ProfileHeaderPr
 
         <div className="flex mt-4 space-x-4 text-sm">
           <div>
-            <span className="font-bold">1,248</span> connections
+            <span className="font-bold">{connectionsData?.total || 0}</span> connections
           </div>
           <div>
-            <span className="font-bold">3,427</span> followers
+            <span className="font-bold">{connectionsData?.thisMonth || 0}</span> added this month
           </div>
         </div>
       </div>
