@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Edit, MapPin, Briefcase, GraduationCap, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProfileHeaderProps {
   isCurrentUser?: boolean;
@@ -13,8 +15,32 @@ interface ProfileHeaderProps {
 }
 
 export default function ProfileHeader({ isCurrentUser = false, connectionsData }: ProfileHeaderProps) {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   
+  const { data: education } = useQuery({
+    queryKey: ['profileEducation', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      // In a real app, this would fetch from an education table
+      // For now, we'll return null to indicate no data
+      return null;
+    },
+    enabled: !!user
+  });
+  
+  const { data: work } = useQuery({
+    queryKey: ['profileWork', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      // In a real app, this would fetch from a work experience table
+      // For now, we'll return null to indicate no data
+      return null;
+    },
+    enabled: !!user
+  });
+
   return (
     <div className="hilite-card mb-4">
       <div className="relative">
@@ -61,9 +87,11 @@ export default function ProfileHeader({ isCurrentUser = false, connectionsData }
           <button className="text-muted-foreground hover:text-foreground">
             <Volume2 className="h-4 w-4" />
           </button>
-          <div className="px-2 py-1 text-xs bg-hilite-light-blue text-hilite-dark-red rounded-full">
-            Open to Work
-          </div>
+          {profile?.role && (
+            <div className="px-2 py-1 text-xs bg-hilite-light-blue text-hilite-dark-red rounded-full">
+              Open to Work
+            </div>
+          )}
         </div>
 
         <h2 className="text-lg text-muted-foreground">{profile?.role || "Add your professional headline"}</h2>
@@ -76,15 +104,28 @@ export default function ProfileHeader({ isCurrentUser = false, connectionsData }
             </div>
           )}
           
-          <div className="flex items-center">
-            <Briefcase className="h-4 w-4 mr-1" />
-            <Link to="/company/techflow" className="hover:text-hilite-dark-red">TechFlow Inc</Link>
-          </div>
-          <div className="flex items-center">
-            <GraduationCap className="h-4 w-4 mr-1" />
-            <Link to="/school/stanford" className="hover:text-hilite-dark-red">Stanford University</Link>
-            <span className="ml-2 px-2 py-0.5 bg-accent rounded-full text-xs font-mono">Currently Attending</span>
-          </div>
+          {work && (
+            <div className="flex items-center">
+              <Briefcase className="h-4 w-4 mr-1" />
+              <Link to={`/company/${work.companyId}`} className="hover:text-hilite-dark-red">
+                {work.companyName}
+              </Link>
+            </div>
+          )}
+          
+          {education && (
+            <div className="flex items-center">
+              <GraduationCap className="h-4 w-4 mr-1" />
+              <Link to={`/school/${education.schoolId}`} className="hover:text-hilite-dark-red">
+                {education.schoolName}
+              </Link>
+              {education.isCurrentlyAttending && (
+                <span className="ml-2 px-2 py-0.5 bg-accent rounded-full text-xs font-mono">
+                  Currently Attending
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex mt-4 space-x-4 text-sm">
