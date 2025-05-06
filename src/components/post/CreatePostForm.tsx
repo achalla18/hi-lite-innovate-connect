@@ -2,6 +2,9 @@
 import { useState } from "react";
 import { Image, Link, FileText, BarChart4, X, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface CreatePostFormProps {
   clubId?: string;
@@ -13,6 +16,8 @@ export default function CreatePostForm({ clubId }: CreatePostFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const handleFocus = () => {
     setIsExpanded(true);
@@ -37,21 +42,41 @@ export default function CreatePostForm({ clubId }: CreatePostFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() && attachments.length === 0) return;
+    if (!user) return;
     
     setIsSubmitting(true);
     
-    // Simulate posting
-    // In a real app, this would connect to Supabase or another backend
-    setTimeout(() => {
-      setIsSubmitting(false);
-      handleClose();
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          content: content,
+          images: attachments.length > 0 ? attachments : null
+        })
+        .select();
+        
+      if (error) throw error;
+      
       toast({
         title: clubId ? "Club post created" : "Post created",
         description: clubId 
           ? "Your post has been published to the club." 
           : "Your post has been published successfully.",
       });
-    }, 1000);
+      
+      // Reset form and invalidate posts query to refresh the list
+      handleClose();
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -60,7 +85,7 @@ export default function CreatePostForm({ clubId }: CreatePostFormProps) {
         <div className="flex space-x-3 p-4">
           <div className="h-10 w-10 rounded-full bg-hilite-gray overflow-hidden">
             <img
-              src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop"
+              src={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop"}
               alt="Profile"
               className="h-full w-full object-cover"
             />

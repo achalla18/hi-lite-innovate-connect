@@ -1,4 +1,7 @@
 
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import CreatePostForm from "@/components/post/CreatePostForm";
 import PostCard from "@/components/post/PostCard";
@@ -6,54 +9,80 @@ import UserStats from "@/components/home/UserStats";
 import NetworkSuggestions from "@/components/home/NetworkSuggestions";
 import TrendingTopics from "@/components/home/TrendingTopics";
 
-const mockPosts = [
-  {
-    id: "1",
-    author: {
-      id: "user1",
-      name: "Alex Chen",
-      role: "Senior Software Engineer at Apple",
-      avatarUrl: "https://images.unsplash.com/photo-1500673922987-e212871fec22?w=200&h=200&fit=crop"
-    },
-    content: "Just launched our new AI-powered feature in production! After months of training models and fine-tuning, it's amazing to see how it's already helping users save time. #MachineLearning #ProductDevelopment",
-    images: ["https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600&fit=crop"],
-    likes: 42,
-    comments: 7,
-    timeAgo: "3h ago"
-  },
-  {
-    id: "2",
-    author: {
-      id: "user2",
-      name: "Jamie Rodriguez",
-      role: "UX Designer at Spotify",
-      avatarUrl: "https://images.unsplash.com/photo-1582562124811-c09040d0a901?w=200&h=200&fit=crop"
-    },
-    content: "Here's a sneak peek at the design system I've been working on for the past few weeks. What do you think?\n\nI've been focusing on creating a more consistent experience across all platforms while maintaining the unique feel of each platform.",
-    images: [
-      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=600&fit=crop",
-      "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&fit=crop"
-    ],
-    likes: 78,
-    comments: 15,
-    timeAgo: "6h ago"
-  },
-  {
-    id: "3",
-    author: {
-      id: "user3",
-      name: "Taylor Kim",
-      role: "Data Scientist at Netflix",
-      avatarUrl: "https://images.unsplash.com/photo-1721322800607-8c38375eef04?w=200&h=200&fit=crop"
-    },
-    content: "I'm excited to announce that I'll be speaking at the Data Science Summit next month! I'll be sharing insights on how we're using ML models to enhance content recommendations. If you're attending, let's connect!",
-    likes: 126,
-    comments: 23,
-    timeAgo: "1d ago"
-  }
-];
-
 export default function Index() {
+  const { user } = useAuth();
+  
+  const { data: posts, isLoading } = useQuery({
+    queryKey: ['posts'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles:user_id (name, role, avatar_url),
+          post_likes:id (user_id)
+        `)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      return data.map(post => {
+        // Format post data for PostCard component
+        const isLiked = post.post_likes?.some(like => like.user_id === user?.id) || false;
+        
+        return {
+          id: post.id,
+          author: {
+            id: post.user_id,
+            name: post.profiles?.name || 'Anonymous',
+            role: post.profiles?.role || '',
+            avatarUrl: post.profiles?.avatar_url || ''
+          },
+          content: post.content,
+          images: post.images,
+          likes: post.post_likes?.length || 0,
+          comments: 0, // We'd need another query to get comment count
+          timeAgo: formatTimeAgo(new Date(post.created_at)),
+          isLiked
+        };
+      });
+    },
+    enabled: !!user
+  });
+  
+  // Helper function to format time ago
+  const formatTimeAgo = (date: Date): string => {
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    let interval = seconds / 31536000; // years
+    if (interval > 1) {
+      return Math.floor(interval) + 'y ago';
+    }
+    
+    interval = seconds / 2592000; // months
+    if (interval > 1) {
+      return Math.floor(interval) + 'mo ago';
+    }
+    
+    interval = seconds / 86400; // days
+    if (interval > 1) {
+      return Math.floor(interval) + 'd ago';
+    }
+    
+    interval = seconds / 3600; // hours
+    if (interval > 1) {
+      return Math.floor(interval) + 'h ago';
+    }
+    
+    interval = seconds / 60; // minutes
+    if (interval > 1) {
+      return Math.floor(interval) + 'm ago';
+    }
+    
+    return 'just now';
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -63,7 +92,7 @@ export default function Index() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left Sidebar */}
             <div className="hidden lg:block">
-              <UserStats />
+              <UserStats hideIfNotAvailable={true} />
               <TrendingTopics />
             </div>
             
@@ -71,9 +100,37 @@ export default function Index() {
             <div className="lg:col-span-2">
               <CreatePostForm />
               
-              {mockPosts.map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
+              {isLoading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="hilite-card p-4 animate-pulse">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="h-10 w-10 bg-hilite-gray rounded-full"></div>
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-hilite-gray rounded w-1/3"></div>
+                          <div className="h-3 bg-hilite-gray rounded w-1/4"></div>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-hilite-gray rounded"></div>
+                        <div className="h-4 bg-hilite-gray rounded"></div>
+                        <div className="h-4 bg-hilite-gray rounded w-2/3"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : posts && posts.length > 0 ? (
+                posts.map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              ) : (
+                <div className="hilite-card p-8 text-center">
+                  <h3 className="text-lg font-bold mb-2">No posts yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Be the first to share something with your network
+                  </p>
+                </div>
+              )}
             </div>
             
             {/* Right Sidebar */}

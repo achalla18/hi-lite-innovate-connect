@@ -1,32 +1,99 @@
 
-import { Link } from "react-router-dom";
-import RegisterForm from "@/components/auth/RegisterForm";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useState } from "react";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Register() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { user, signUp, isLoading } = useAuth();
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await signUp(email, password, name);
+  };
+  
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="py-4 px-6 flex justify-between items-center">
-        <Link to="/" className="flex items-center space-x-2">
-          <span className="text-xl font-bold text-hilite-purple">Hi-Lite</span>
-        </Link>
-        <ThemeToggle />
-      </header>
-      
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <RegisterForm />
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-md">
+        <div className="hilite-card">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-hilite-dark-red">Hi-lite</h1>
+            <p className="text-muted-foreground">Create a new account</p>
+          </div>
+          
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium mb-1">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="hilite-input w-full"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium mb-1">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="hilite-input w-full"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium mb-1">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="hilite-input w-full"
+                  required
+                  minLength={6}
+                />
+              </div>
+              
+              <div>
+                <button
+                  type="submit"
+                  className="hilite-btn-primary w-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Creating account..." : "Create account"}
+                </button>
+              </div>
+            </div>
+          </form>
+          
+          <div className="mt-6 text-center text-sm">
+            <p>
+              Already have an account?{" "}
+              <Link to="/login" className="text-hilite-dark-red hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </div>
         </div>
-      </main>
-      
-      <footer className="py-4 px-6 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} Hi-Lite. All rights reserved.</p>
-        <div className="mt-2 space-x-4">
-          <Link to="/about" className="hover:text-hilite-purple">About</Link>
-          <Link to="/privacy" className="hover:text-hilite-purple">Privacy</Link>
-          <Link to="/terms" className="hover:text-hilite-purple">Terms</Link>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 }

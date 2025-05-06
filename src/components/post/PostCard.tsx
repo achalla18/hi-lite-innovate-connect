@@ -2,6 +2,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { MessageCircle, Heart, Bookmark, Share2, MoreHorizontal } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface PostCardProps {
   post: {
@@ -23,22 +27,101 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post }: PostCardProps) {
+  const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [likeCount, setLikeCount] = useState(post.likes);
   const [isSaved, setIsSaved] = useState(post.isSaved || false);
   const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const toggleLike = () => {
-    if (isLiked) {
-      setLikeCount(prev => prev - 1);
-    } else {
-      setLikeCount(prev => prev + 1);
+  const toggleLike = async () => {
+    if (!user) return;
+    
+    try {
+      if (isLiked) {
+        // Unlike post
+        const { error } = await supabase
+          .from('post_likes')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+        
+        setLikeCount(prev => prev - 1);
+        setIsLiked(false);
+      } else {
+        // Like post
+        const { error } = await supabase
+          .from('post_likes')
+          .insert({
+            post_id: post.id,
+            user_id: user.id
+          });
+          
+        if (error) throw error;
+        
+        setLikeCount(prev => prev + 1);
+        setIsLiked(true);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
     }
-    setIsLiked(!isLiked);
   };
 
   const toggleSave = () => {
+    // In a real app, this would save the post to the user's saved posts
     setIsSaved(!isSaved);
+    
+    toast({
+      title: isSaved ? "Post removed from saved items" : "Post saved",
+      description: isSaved 
+        ? "The post has been removed from your saved items." 
+        : "The post has been added to your saved items."
+    });
+  };
+  
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !user) return;
+    
+    setIsSubmittingComment(true);
+    
+    try {
+      const { error } = await supabase
+        .from('post_comments')
+        .insert({
+          post_id: post.id,
+          user_id: user.id,
+          content: commentText
+        });
+        
+      if (error) throw error;
+      
+      setCommentText("");
+      toast({
+        title: "Comment added",
+        description: "Your comment has been posted."
+      });
+      
+      // Refresh posts to update comment count
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingComment(false);
+    }
   };
 
   return (
@@ -48,7 +131,7 @@ export default function PostCard({ post }: PostCardProps) {
         <div className="flex space-x-3">
           <Link to={`/profile/${post.author.id}`} className="h-10 w-10 rounded-full bg-hilite-gray overflow-hidden">
             <img
-              src={post.author.avatarUrl}
+              src={post.author.avatarUrl || "https://via.placeholder.com/40"}
               alt={post.author.name}
               className="h-full w-full object-cover"
             />
@@ -133,26 +216,36 @@ export default function PostCard({ post }: PostCardProps) {
         </button>
       </div>
       
-      {/* Comments Section - Can be expanded */}
+      {/* Comments Section */}
       {showComments && (
         <div className="mt-3 pt-3 border-t">
-          <div className="flex space-x-3">
+          <form onSubmit={handleSubmitComment} className="flex space-x-3">
             <div className="h-8 w-8 rounded-full bg-hilite-gray overflow-hidden">
               <img
-                src="https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop"
+                src={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop"}
                 alt="Profile"
                 className="h-full w-full object-cover"
               />
             </div>
             
-            <div className="flex-1">
+            <div className="flex-1 flex">
               <input
                 type="text"
                 placeholder="Add a comment..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
                 className="hilite-input w-full"
+                disabled={isSubmittingComment}
               />
+              <button 
+                type="submit" 
+                className="ml-2 hilite-btn-primary"
+                disabled={!commentText.trim() || isSubmittingComment}
+              >
+                {isSubmittingComment ? "..." : "Post"}
+              </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>
