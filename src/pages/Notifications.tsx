@@ -33,62 +33,84 @@ export default function Notifications() {
       
       const result: Notification[] = [];
       
-      // Get profile views with fixed join relationship
+      // Get profile views with manual join to profiles
       const { data: viewsData } = await supabase
         .from('profile_views')
         .select(`
           id, 
           viewed_at,
-          viewer_id,
-          viewers:profiles(name, avatar_url)
+          viewer_id
         `)
         .eq('profile_id', user.id)
         .order('viewed_at', { ascending: false })
         .limit(10);
         
       if (viewsData) {
-        const viewNotifications: Notification[] = viewsData
-          .filter(view => view.viewer_id && view.viewer_id !== user.id && view.viewers)
-          .map(view => ({
-            id: view.id,
-            type: "profile_view" as NotificationType,
-            actorId: view.viewer_id || '',
-            actorName: view.viewers?.name || 'Someone',
-            actorAvatar: view.viewers?.avatar_url || '/placeholder.svg',
-            timestamp: new Date(view.viewed_at),
-            read: true,
-          }));
+        // For each view, fetch the viewer's profile data
+        const viewNotifications: Notification[] = [];
+        
+        for (const view of viewsData) {
+          if (view.viewer_id && view.viewer_id !== user.id) {
+            // Fetch viewer profile
+            const { data: viewerProfile } = await supabase
+              .from('profiles')
+              .select('name, avatar_url')
+              .eq('id', view.viewer_id)
+              .single();
+              
+            viewNotifications.push({
+              id: view.id,
+              type: "profile_view" as NotificationType,
+              actorId: view.viewer_id,
+              actorName: viewerProfile?.name || 'Someone',
+              actorAvatar: viewerProfile?.avatar_url || '/placeholder.svg',
+              timestamp: new Date(view.viewed_at),
+              read: true,
+            });
+          }
+        }
         
         result.push(...viewNotifications);
       }
       
-      // Get connection requests with fixed join relationship
+      // Get connection requests with manual join to profiles
       const { data: connectionsData } = await supabase
         .from('connections')
         .select(`
           id,
           created_at,
-          user_id,
-          requesters:profiles(name, avatar_url)
+          user_id
         `)
         .eq('connected_user_id', user.id)
         .order('created_at', { ascending: false });
         
       if (connectionsData) {
-        const connectionNotifications: Notification[] = connectionsData.map(connection => ({
-          id: connection.id,
-          type: "connection" as NotificationType,
-          actorId: connection.user_id,
-          actorName: connection.requesters?.name || 'Someone',
-          actorAvatar: connection.requesters?.avatar_url || '/placeholder.svg',
-          timestamp: new Date(connection.created_at),
-          read: true,
-        }));
+        // For each connection, fetch the requester's profile data
+        const connectionNotifications: Notification[] = [];
+        
+        for (const connection of connectionsData) {
+          // Fetch requester profile
+          const { data: requesterProfile } = await supabase
+            .from('profiles')
+            .select('name, avatar_url')
+            .eq('id', connection.user_id)
+            .single();
+            
+          connectionNotifications.push({
+            id: connection.id,
+            type: "connection" as NotificationType,
+            actorId: connection.user_id,
+            actorName: requesterProfile?.name || 'Someone',
+            actorAvatar: requesterProfile?.avatar_url || '/placeholder.svg',
+            timestamp: new Date(connection.created_at),
+            read: true,
+          });
+        }
         
         result.push(...connectionNotifications);
       }
       
-      // Get post likes
+      // Get user posts
       const { data: userPosts } = await supabase
         .from('posts')
         .select('id')
@@ -97,36 +119,47 @@ export default function Notifications() {
       if (userPosts && userPosts.length > 0) {
         const postIds = userPosts.map(post => post.id);
         
-        // Get post likes with fixed join relationship
+        // Get post likes with manual join to profiles
         const { data: likesData } = await supabase
           .from('post_likes')
           .select(`
             id,
             created_at,
             post_id,
-            user_id,
-            likers:profiles(name, avatar_url)
+            user_id
           `)
           .in('post_id', postIds)
           .neq('user_id', user.id)
           .order('created_at', { ascending: false });
           
         if (likesData) {
-          const likeNotifications: Notification[] = likesData.map(like => ({
-            id: like.id,
-            type: "post_like" as NotificationType,
-            actorId: like.user_id,
-            actorName: like.likers?.name || 'Someone',
-            actorAvatar: like.likers?.avatar_url || '/placeholder.svg',
-            targetId: like.post_id,
-            timestamp: new Date(like.created_at),
-            read: true,
-          }));
+          // For each like, fetch the liker's profile data
+          const likeNotifications: Notification[] = [];
+          
+          for (const like of likesData) {
+            // Fetch liker profile
+            const { data: likerProfile } = await supabase
+              .from('profiles')
+              .select('name, avatar_url')
+              .eq('id', like.user_id)
+              .single();
+              
+            likeNotifications.push({
+              id: like.id,
+              type: "post_like" as NotificationType,
+              actorId: like.user_id,
+              actorName: likerProfile?.name || 'Someone',
+              actorAvatar: likerProfile?.avatar_url || '/placeholder.svg',
+              targetId: like.post_id,
+              timestamp: new Date(like.created_at),
+              read: true,
+            });
+          }
           
           result.push(...likeNotifications);
         }
         
-        // Get post comments with fixed join relationship
+        // Get post comments with manual join to profiles
         const { data: commentsData } = await supabase
           .from('post_comments')
           .select(`
@@ -134,25 +167,36 @@ export default function Notifications() {
             created_at,
             post_id,
             user_id,
-            content,
-            commenters:profiles(name, avatar_url)
+            content
           `)
           .in('post_id', postIds)
           .neq('user_id', user.id)
           .order('created_at', { ascending: false });
           
         if (commentsData) {
-          const commentNotifications: Notification[] = commentsData.map(comment => ({
-            id: comment.id,
-            type: "post_comment" as NotificationType,
-            actorId: comment.user_id,
-            actorName: comment.commenters?.name || 'Someone',
-            actorAvatar: comment.commenters?.avatar_url || '/placeholder.svg',
-            targetId: comment.post_id,
-            timestamp: new Date(comment.created_at),
-            content: comment.content,
-            read: true,
-          }));
+          // For each comment, fetch the commenter's profile data
+          const commentNotifications: Notification[] = [];
+          
+          for (const comment of commentsData) {
+            // Fetch commenter profile
+            const { data: commenterProfile } = await supabase
+              .from('profiles')
+              .select('name, avatar_url')
+              .eq('id', comment.user_id)
+              .single();
+              
+            commentNotifications.push({
+              id: comment.id,
+              type: "post_comment" as NotificationType,
+              actorId: comment.user_id,
+              actorName: commenterProfile?.name || 'Someone',
+              actorAvatar: commenterProfile?.avatar_url || '/placeholder.svg',
+              targetId: comment.post_id,
+              timestamp: new Date(comment.created_at),
+              content: comment.content,
+              read: true,
+            });
+          }
           
           result.push(...commentNotifications);
         }
