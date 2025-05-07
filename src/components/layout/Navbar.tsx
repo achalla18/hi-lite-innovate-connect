@@ -1,11 +1,12 @@
 
 import { Link } from "react-router-dom";
-import { Bell, Home, MessageCircle, Search, User, Hash, Users } from "lucide-react";
+import { Bell, Home, MessageCircle, Search, Hash, Users } from "lucide-react";
 import { ThemeToggle } from "../ThemeToggle";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import UserMenu from "./UserMenu";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -96,14 +97,14 @@ export default function Navbar() {
           </div>
         </div>
         <div className="ml-auto flex items-center space-x-4">
-          <div className="relative">
+          <Link to="/search" className="relative hidden md:block">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
               type="search"
               placeholder="Search Hi-Lite..."
               className="hilite-input w-48 md:w-64 pl-8 rounded-full"
             />
-          </div>
+          </Link>
           
           <nav className="flex items-center space-x-2">
             <Link to="/" className="p-2 hover:bg-accent rounded-md">
@@ -124,10 +125,7 @@ export default function Navbar() {
               <span className="sr-only">Messages</span>
             </Link>
             <ThemeToggle />
-            <Link to="/profile" className="p-2 hover:bg-accent rounded-md">
-              <User className="h-5 w-5" />
-              <span className="sr-only">Profile</span>
-            </Link>
+            <UserMenu />
           </nav>
         </div>
       </div>
