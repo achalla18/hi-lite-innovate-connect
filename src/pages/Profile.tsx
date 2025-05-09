@@ -50,23 +50,20 @@ export default function Profile() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      if (data) {
-        setProfileData(data);
-        
-        // Record profile view if not viewing own profile
-        if (!isCurrentUser && user) {
-          recordProfileView();
-        }
-      }
-    },
-    onError: (error) => {
-      console.error("Error fetching profile:", error);
-      toast.error("Failed to load profile");
-      navigate('/');
-    },
     enabled: !!userId
   });
+
+  // Set profile data when viewedProfile changes
+  useEffect(() => {
+    if (viewedProfile) {
+      setProfileData(viewedProfile);
+      
+      // Record profile view if not viewing own profile
+      if (!isCurrentUser && user) {
+        recordProfileView();
+      }
+    }
+  }, [viewedProfile, isCurrentUser, user]);
 
   // Record that the current user viewed this profile
   const recordProfileView = async () => {
@@ -295,7 +292,7 @@ export default function Profile() {
             
             <AboutSection 
               isCurrentUser={isCurrentUser} 
-              initialBio={viewedProfile?.about || "No bio added yet."}
+              initialBio={viewedProfile?.about || ""}
             />
             <FeaturedSection />
             <ExperienceSection isCurrentUser={isCurrentUser} />

@@ -18,6 +18,7 @@ interface AuthContextType {
   session: Session | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
   isLoading: boolean;
 }
@@ -110,6 +111,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
+  const signUp = async (email: string, password: string, name: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: name,
+        }
+      }
+    });
+    
+    if (error) {
+      throw error;
+    }
+    
+    // The profile will be created automatically via a database trigger
+    
+    // Return the user and session
+    setUser(data.user);
+    setSession(data.session);
+  };
+  
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -118,7 +141,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
   
   return (
-    <AuthContext.Provider value={{ user, profile, session, signIn, signOut, refreshProfile, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      profile, 
+      session, 
+      signIn, 
+      signUp,
+      signOut, 
+      refreshProfile, 
+      isLoading 
+    }}>
       {children}
     </AuthContext.Provider>
   );

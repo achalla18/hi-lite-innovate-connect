@@ -2,16 +2,27 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { user, signUp, isLoading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signUp(email, password, name);
+    
+    try {
+      setIsSubmitting(true);
+      await signUp(email, password, name);
+      toast.success("Account created successfully!");
+    } catch (error: any) {
+      toast.error(`Registration failed: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   if (user) {
@@ -76,9 +87,9 @@ export default function Register() {
                 <button
                   type="submit"
                   className="hilite-btn-primary w-full"
-                  disabled={isLoading}
+                  disabled={isLoading || isSubmitting}
                 >
-                  {isLoading ? "Creating account..." : "Create account"}
+                  {isSubmitting ? "Creating account..." : "Create account"}
                 </button>
               </div>
             </div>
