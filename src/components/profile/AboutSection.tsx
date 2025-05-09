@@ -1,6 +1,9 @@
 
 import { useState } from "react";
 import { Edit } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AboutSectionProps {
   isCurrentUser?: boolean;
@@ -9,15 +12,36 @@ interface AboutSectionProps {
 
 export default function AboutSection({ 
   isCurrentUser = false, 
-  initialBio = "Full-stack developer with a passion for creating intuitive and performant web applications. Focused on React, TypeScript, and Node.js. Currently exploring AI and ML integration in web apps." 
+  initialBio = "" 
 }: AboutSectionProps) {
+  const { user, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [bio, setBio] = useState(initialBio);
   const [editedBio, setEditedBio] = useState(initialBio);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSave = () => {
-    setBio(editedBio);
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ about: editedBio })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      setBio(editedBio);
+      setIsEditing(false);
+      await refreshProfile();
+      toast.success("Bio updated successfully");
+    } catch (error: any) {
+      toast.error(`Failed to update bio: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -39,26 +63,38 @@ export default function AboutSection({
           <textarea
             value={editedBio}
             onChange={(e) => setEditedBio(e.target.value)}
-            className="hilite-input w-full h-32 resize-none"
+            className="w-full h-32 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-hilite-light-blue focus:border-hilite-light-blue"
             placeholder="Write something about yourself..."
+            disabled={isSubmitting}
           />
           <div className="flex justify-end space-x-2">
             <button
-              onClick={() => setIsEditing(false)}
-              className="hilite-btn-secondary text-sm"
+              onClick={() => {
+                setEditedBio(bio);
+                setIsEditing(false);
+              }}
+              className="px-4 py-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground text-sm font-medium rounded-md"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="hilite-btn-primary text-sm"
+              className="px-4 py-2 bg-hilite-dark-red hover:bg-hilite-dark-red/90 text-white text-sm font-medium rounded-md"
+              disabled={isSubmitting}
             >
-              Save
+              {isSubmitting ? "Saving..." : "Save"}
             </button>
           </div>
         </div>
       ) : (
-        <p className="text-muted-foreground whitespace-pre-wrap">{bio}</p>
+        <div className="text-muted-foreground whitespace-pre-wrap">
+          {bio ? bio : (
+            <span className="text-muted-foreground italic">
+              {isCurrentUser ? "Add information about yourself..." : "No information added yet."}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

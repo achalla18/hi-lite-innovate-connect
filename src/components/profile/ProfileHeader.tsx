@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { Edit, MapPin, Briefcase, GraduationCap, Volume2 } from "lucide-react";
+import { MapPin, Briefcase, GraduationCap, Volume2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useQuery } from "@tanstack/react-query";
@@ -12,33 +12,35 @@ interface ProfileHeaderProps {
     total: number;
     thisMonth: number;
   };
+  profile?: any; // The profile being viewed
 }
 
-export default function ProfileHeader({ isCurrentUser = false, connectionsData }: ProfileHeaderProps) {
-  const { profile, user } = useAuth();
+export default function ProfileHeader({ isCurrentUser = false, connectionsData, profile }: ProfileHeaderProps) {
+  const { user, profile: currentUserProfile } = useAuth();
+  
+  // Use the provided profile or fall back to the current user's profile
+  const displayProfile = profile || currentUserProfile;
   
   const { data: education } = useQuery({
-    queryKey: ['profileEducation', user?.id],
+    queryKey: ['profileEducation', profile?.id || user?.id],
     queryFn: async () => {
-      if (!user) return null;
+      if (!displayProfile?.id) return null;
       
       // In a real app, this would fetch from an education table
-      // For now, we'll return null to indicate no data
       return null;
     },
-    enabled: !!user
+    enabled: !!displayProfile?.id
   });
   
   const { data: work } = useQuery({
-    queryKey: ['profileWork', user?.id],
+    queryKey: ['profileWork', profile?.id || user?.id],
     queryFn: async () => {
-      if (!user) return null;
+      if (!displayProfile?.id) return null;
       
       // In a real app, this would fetch from a work experience table
-      // For now, we'll return null to indicate no data
       return null;
     },
-    enabled: !!user
+    enabled: !!displayProfile?.id
   });
 
   return (
@@ -52,11 +54,11 @@ export default function ProfileHeader({ isCurrentUser = false, connectionsData }
           <div className="relative">
             <Avatar className="h-24 w-24 border-4 border-background">
               <AvatarImage 
-                src={profile?.avatar_url || "/placeholder.svg"} 
-                alt={profile?.name || "Profile"} 
+                src={displayProfile?.avatar_url || "/placeholder.svg"} 
+                alt={displayProfile?.name || "Profile"} 
               />
               <AvatarFallback className="text-xl">
-                {profile?.name?.charAt(0) || "U"}
+                {displayProfile?.name?.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
             {isCurrentUser && (
@@ -72,35 +74,30 @@ export default function ProfileHeader({ isCurrentUser = false, connectionsData }
           <div className="absolute top-4 right-4 space-x-2">
             <Link to="/profile-setup" className="hilite-btn-secondary text-sm">Edit Profile</Link>
           </div>
-        ) : (
-          <div className="absolute top-4 right-4 space-x-2 flex">
-            <button className="hilite-btn-secondary text-sm">Message</button>
-            <button className="hilite-btn-primary text-sm">Connect</button>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* Profile Info */}
       <div className="mt-14 md:mt-16 px-4">
         <div className="flex items-center space-x-2">
-          <h1 className="text-2xl font-bold">{profile?.name || "Complete Your Profile"}</h1>
+          <h1 className="text-2xl font-bold">{displayProfile?.name || "Complete Your Profile"}</h1>
           <button className="text-muted-foreground hover:text-foreground">
             <Volume2 className="h-4 w-4" />
           </button>
-          {profile?.role && (
+          {displayProfile?.role && (
             <div className="px-2 py-1 text-xs bg-hilite-light-blue text-hilite-dark-red rounded-full">
               Open to Work
             </div>
           )}
         </div>
 
-        <h2 className="text-lg text-muted-foreground">{profile?.role || "Add your professional headline"}</h2>
+        <h2 className="text-lg text-muted-foreground">{displayProfile?.role || "Add your professional headline"}</h2>
         
         <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-          {profile?.location && (
+          {displayProfile?.location && (
             <div className="flex items-center">
               <MapPin className="h-4 w-4 mr-1" />
-              <span>{profile.location}</span>
+              <span>{displayProfile.location}</span>
             </div>
           )}
           
@@ -140,3 +137,5 @@ export default function ProfileHeader({ isCurrentUser = false, connectionsData }
     </div>
   );
 }
+
+import { Edit } from "lucide-react";

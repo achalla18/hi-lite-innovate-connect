@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "sonner";
 import { 
   Briefcase, 
   GraduationCap, 
@@ -21,16 +21,15 @@ import {
 } from "lucide-react";
 
 export default function ProfileSetup() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: profile?.name || "",
     role: profile?.role || "",
     location: profile?.location || "",
-    about: "",
+    about: profile?.about || "",
     avatarUrl: profile?.avatar_url || "",
     education: [{
       school: "",
@@ -182,47 +181,41 @@ export default function ProfileSetup() {
     e.preventDefault();
     
     if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to complete your profile",
-        variant: "destructive"
-      });
+      toast.error("You must be logged in to complete your profile");
       return;
     }
     
     setIsSubmitting(true);
     
     try {
-      // Update profile
+      // Update profile in the profiles table
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           name: formData.name,
           role: formData.role,
           location: formData.location,
-          avatar_url: formData.avatarUrl
+          avatar_url: formData.avatarUrl,
+          about: formData.about
         })
         .eq('id', user.id);
       
       if (profileError) throw profileError;
       
-      // Additional fields like experience, education, etc. would be inserted
-      // into their respective tables in a production app
+      // In a production app, we would also save education, experience, skills, and projects
+      // to their respective tables here
       
-      toast({
-        title: "Profile Updated",
-        description: "Your profile has been successfully updated"
-      });
+      toast.success("Profile updated successfully!");
       
+      // Refresh the profile data in the auth context
+      await refreshProfile();
+      
+      // Navigate to the user's profile page
       setTimeout(() => {
-        navigate('/profile');
+        navigate(`/profile/${user.id}`);
       }, 1000);
     } catch (error: any) {
-      toast({
-        title: "Error Updating Profile",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(`Error updating profile: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
