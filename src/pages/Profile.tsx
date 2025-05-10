@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -12,8 +11,10 @@ import ExperienceSection from "@/components/profile/ExperienceSection";
 import EducationSection from "@/components/profile/EducationSection";
 import FeaturedSection from "@/components/profile/FeaturedSection";
 import ProjectsSection from "@/components/profile/ProjectsSection";
+import SavedPosts from "@/components/profile/SavedPosts";
 import PostCard from "@/components/post/PostCard";
 import UserClubs from "@/components/profile/UserClubs";
+import AdminPanel from "@/components/admin/AdminPanel";
 import { Button } from "@/components/ui/button";
 import { UserPlus, MessageSquare } from "lucide-react";
 
@@ -186,6 +187,18 @@ export default function Profile() {
     enabled: !!user && !!userId && !isCurrentUser
   });
 
+  // Check if user is admin/moderator
+  const { data: isModOrAdmin = false } = useQuery({
+    queryKey: ['isModOrAdmin', user?.id],
+    queryFn: async () => {
+      if (!user) return false;
+      
+      const { data } = await supabase.rpc('is_mod_or_admin', { user_id: user.id });
+      return !!data;
+    },
+    enabled: !!user
+  });
+
   const handleSendConnectionRequest = async () => {
     if (!user || !userId) return;
     
@@ -314,6 +327,16 @@ export default function Profile() {
           
           {/* Right Column */}
           <div className="space-y-4">
+            {/* Show saved posts only for current user */}
+            {isCurrentUser && (
+              <SavedPosts />
+            )}
+
+            {/* Show admin panel for admins/mods */}
+            {isCurrentUser && isModOrAdmin && (
+              <AdminPanel />
+            )}
+            
             <UserClubs />
           </div>
         </div>

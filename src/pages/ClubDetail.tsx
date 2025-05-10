@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import Navbar from "@/components/layout/Navbar";
@@ -241,7 +240,7 @@ export default function ClubDetail() {
                       likes: post.likes,
                       comments: post.comments,
                       timeAgo: post.timeAgo,
-                      isLiked: post.isLiked || false
+                      isLiked: false
                     }} />
                   ))}
                 </>
