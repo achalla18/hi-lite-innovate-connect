@@ -26,10 +26,13 @@ const profileFormSchema = z.object({
   name: z.string().min(2, {
     message: "Name must be at least 2 characters."
   }),
-  role: z.string().optional(),
+  schoolName: z.string().optional(),
   location: z.string().optional(),
   about: z.string().optional(),
   avatarUrl: z.string().optional(),
+  experience: z.string().optional(),
+  projects: z.string().optional(),
+  awards: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -48,10 +51,13 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: profile?.name || "",
-      role: profile?.role || "",
+      schoolName: profile?.role || "",
       location: profile?.location || "",
       about: profile?.about || "",
       avatarUrl: profile?.avatar_url || "",
+      experience: profile?.experience || "",
+      projects: profile?.projects || "",
+      awards: profile?.awards || "",
     },
   });
 
@@ -68,10 +74,13 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
         .from('profiles')
         .update({
           name: values.name,
-          role: values.role,
+          role: values.schoolName, // Store schoolName in the role field
           location: values.location,
           avatar_url: values.avatarUrl,
-          about: values.about
+          about: values.about,
+          experience: values.experience,
+          projects: values.projects,
+          awards: values.awards
         })
         .eq('id', user.id);
       
@@ -153,12 +162,12 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
               
               <FormField
                 control={form.control}
-                name="role"
+                name="schoolName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Professional Headline</FormLabel>
+                    <FormLabel>School Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Software Engineer, Student, etc." {...field} />
+                      <Input placeholder="Harvard University, Stanford, etc." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -192,6 +201,61 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
                       <Textarea 
                         placeholder="Tell others about yourself" 
                         className="min-h-[120px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* New Fields */}
+              <FormField
+                control={form.control}
+                name="experience"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Experience</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Share your past work experience" 
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="projects"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Projects</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Describe your current projects" 
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="awards"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Awards & Honors</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="List any awards or honors you've received" 
+                        className="min-h-[100px]"
                         {...field} 
                       />
                     </FormControl>

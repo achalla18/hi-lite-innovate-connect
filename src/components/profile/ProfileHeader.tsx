@@ -91,12 +91,12 @@ export default function ProfileHeader({
           </button>
           {displayProfile?.role && (
             <div className="px-2 py-1 text-xs bg-hilite-light-blue text-hilite-dark-red rounded-full">
-              Open to Work
+              Student
             </div>
           )}
         </div>
 
-        <h2 className="text-lg text-muted-foreground">{displayProfile?.role || "Add your professional headline"}</h2>
+        <h2 className="text-lg text-muted-foreground">{displayProfile?.role || "Add your school name"}</h2>
         
         <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
           {displayProfile?.location && (
