@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +18,13 @@ import UserClubs from "@/components/profile/UserClubs";
 import AdminPanel from "@/components/admin/AdminPanel";
 import { Button } from "@/components/ui/button";
 import { UserPlus, MessageSquare } from "lucide-react";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
+import EditProfileForm from "@/components/profile/EditProfileForm";
 
 export default function Profile() {
   const { userId } = useParams();
@@ -24,6 +32,7 @@ export default function Profile() {
   const { user, profile: currentUserProfile } = useAuth();
   const [profileData, setProfileData] = useState<any>(null);
   const [isCurrentUser, setIsCurrentUser] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   
   useEffect(() => {
     // If no userId is provided, use the current user's profile
@@ -279,6 +288,7 @@ export default function Profile() {
               isCurrentUser={isCurrentUser} 
               connectionsData={connectionsData}
               profile={viewedProfile}
+              onEditProfile={() => setIsEditProfileOpen(true)}
             />
             
             {!isCurrentUser && (
@@ -341,6 +351,16 @@ export default function Profile() {
           </div>
         </div>
       </main>
+      
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditProfileOpen} onOpenChange={setIsEditProfileOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Your Profile</DialogTitle>
+          </DialogHeader>
+          <EditProfileForm onComplete={() => setIsEditProfileOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

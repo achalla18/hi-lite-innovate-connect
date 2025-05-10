@@ -1,8 +1,9 @@
 
 import { Link } from "react-router-dom";
-import { MapPin, Briefcase, GraduationCap, Volume2 } from "lucide-react";
+import { MapPin, Briefcase, GraduationCap, Volume2, Edit } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -13,9 +14,15 @@ interface ProfileHeaderProps {
     thisMonth: number;
   };
   profile?: any; // The profile being viewed
+  onEditProfile?: () => void;
 }
 
-export default function ProfileHeader({ isCurrentUser = false, connectionsData, profile }: ProfileHeaderProps) {
+export default function ProfileHeader({ 
+  isCurrentUser = false, 
+  connectionsData, 
+  profile, 
+  onEditProfile 
+}: ProfileHeaderProps) {
   const { user, profile: currentUserProfile } = useAuth();
   
   // Use the provided profile or fall back to the current user's profile
@@ -61,18 +68,16 @@ export default function ProfileHeader({ isCurrentUser = false, connectionsData, 
                 {displayProfile?.name?.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
-            {isCurrentUser && (
-              <button className="absolute bottom-0 right-0 bg-hilite-dark-red text-white p-1 rounded-full">
-                <Edit className="h-4 w-4" />
-              </button>
-            )}
           </div>
         </div>
 
         {/* Action buttons */}
         {isCurrentUser ? (
           <div className="absolute top-4 right-4 space-x-2">
-            <Link to="/profile-setup" className="hilite-btn-secondary text-sm">Edit Profile</Link>
+            <Button onClick={onEditProfile} className="hilite-btn-secondary text-sm">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Profile
+            </Button>
           </div>
         ) : null}
       </div>
@@ -137,5 +142,3 @@ export default function ProfileHeader({ isCurrentUser = false, connectionsData, 
     </div>
   );
 }
-
-import { Edit } from "lucide-react";

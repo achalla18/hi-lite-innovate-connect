@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
@@ -10,6 +10,7 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const { user, signUp, isLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +19,8 @@ export default function Register() {
       setIsSubmitting(true);
       await signUp(email, password, name);
       toast.success("Account created successfully!");
+      // Redirect to profile setup page after successful registration
+      navigate("/profile-setup");
     } catch (error: any) {
       toast.error(`Registration failed: ${error.message}`);
     } finally {
@@ -26,7 +29,7 @@ export default function Register() {
   };
   
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/profile-setup" replace />;
   }
   
   return (
