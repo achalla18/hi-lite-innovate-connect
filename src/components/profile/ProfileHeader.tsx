@@ -137,6 +137,11 @@ export default function ProfileHeader({
           <div>
             <span className="font-bold">{connectionsData?.thisMonth || 0}</span> added this month
           </div>
+          {displayProfile?.id && (
+            <div className="text-muted-foreground">
+              Profile URL: {window.location.origin}/user/{displayProfile.id}
+            </div>
+          )}
         </div>
       </div>
     </div>

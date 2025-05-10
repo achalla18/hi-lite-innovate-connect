@@ -33,7 +33,8 @@ export default function ProfileSetup() {
             <CardHeader>
               <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
               <CardDescription>
-                Add your information to help others find and connect with you
+                Add your information to help others find and connect with you. 
+                Your profile will be available at {window.location.origin}/user/{user.id}
               </CardDescription>
             </CardHeader>
             

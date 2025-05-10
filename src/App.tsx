@@ -47,10 +47,14 @@ const App = () => (
             <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/user/:userId" element={<ProtectedRoute><Navigate to="/profile/:userId" replace /></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
             <Route path="/clubs" element={<ProtectedRoute><Clubs /></ProtectedRoute>} />
-            <Route path="/clubs/:clubId" element={<ProtectedRoute><ClubDetail /></ProtectedRoute>} />
+            <Route path="/club/:clubId" element={<ProtectedRoute><ClubDetail /></ProtectedRoute>} />
+            <Route path="/clubs/:clubId" element={<ProtectedRoute><Navigate to="/club/:clubId" replace /></ProtectedRoute>} />
+            <Route path="/post/:postId" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/hashtag/:tag" element={<ProtectedRoute><Search /></ProtectedRoute>} />
             <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
             <Route path="/network" element={<ProtectedRoute><Network /></ProtectedRoute>} />
             <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
