@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/layout/Navbar";
 import { Search, Send, Phone, Video, MoreVertical, X, Check, Clock, CheckCheck } from "lucide-react";
@@ -10,40 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-
-interface Message {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  is_read: boolean;
-  created_at: string;
-}
-
-interface MessageRequest {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  status: 'pending' | 'accepted' | 'declined';
-  messages_sent: number;
-  created_at: string;
-}
-
-interface Conversation {
-  id: string;
-  user: {
-    id: string;
-    name: string;
-    avatarUrl: string;
-    status: 'online' | 'offline';
-  };
-  lastMessage: string;
-  time: string;
-  unread: number;
-  isMessageRequest: boolean;
-  messageRequestId?: string;
-  messagesRemaining?: number;
-}
+import { Message, MessageRequest, Conversation } from "@/types/message";
 
 export default function Messages() {
   const { user, profile } = useAuth();
@@ -104,7 +70,7 @@ export default function Messages() {
   });
 
   // Get all messages
-  const { data: allMessages } = useQuery({
+  const { data: allMessages } = useQuery<Message[]>({
     queryKey: ['messages', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -124,7 +90,7 @@ export default function Messages() {
   });
 
   // Get all message requests
-  const { data: messageRequests } = useQuery({
+  const { data: messageRequests } = useQuery<MessageRequest[]>({
     queryKey: ['messageRequests', user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -305,7 +271,7 @@ export default function Messages() {
       messagesRemaining: messagesRemaining
     };
   }) || [];
-  
+
   // Set the first conversation as selected by default
   useEffect(() => {
     if (conversations.length > 0 && !selectedConversation) {
@@ -350,7 +316,7 @@ export default function Messages() {
       receiver_id: selectedConversation
     });
   };
-  
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />

@@ -20,12 +20,35 @@ export default function Register() {
       setIsSubmitting(true);
       
       // First check if email is already in use
-      const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
-        email,
-        password: "dummy_password_just_to_check", // This will fail but tell us if the email exists
+      const { data: existingUser } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
       });
       
-      if (!checkError) {
+      // Check with the Supabase backend directly
+      const { count, error: countError } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('email', email);
+      
+      if (countError) {
+        // Use alternative approach - try signin and see if it fails with wrong password
+        const { error: checkError } = await supabase.auth.signInWithPassword({
+          email,
+          password: "dummy_password_just_to_check", // This will fail but tell us if the email exists
+        });
+        
+        if (!checkError || checkError.message.toLowerCase().includes("invalid login")) {
+          toast.error("Email already in use. Please use a different email address.");
+          setIsSubmitting(false);
+          return;
+        }
+      } else if (count && count > 0) {
         toast.error("Email already in use. Please use a different email address.");
         setIsSubmitting(false);
         return;
@@ -80,7 +103,7 @@ export default function Register() {
               
               <div>
                 <label htmlFor="email" className="block text-sm font-medium mb-1">
-                  Email
+                  School Email
                 </label>
                 <input
                   id="email"
@@ -88,6 +111,7 @@ export default function Register() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="hilite-input w-full"
+                  placeholder="you@school.com"
                   required
                 />
               </div>
