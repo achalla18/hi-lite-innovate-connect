@@ -69,40 +69,59 @@ export default function Messages() {
     enabled: !!connections && connections.length > 0
   });
 
-  // Get all messages
-  const { data: allMessages } = useQuery<Message[]>({
+  // Get all messages - using a direct fetch to handle the table that might not be in types yet
+  const { data: allMessages } = useQuery({
     queryKey: ['messages', user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user) return [] as Message[];
       
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
-        .order('created_at', { ascending: true });
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
         
-      if (error) throw error;
-      
-      return data || [];
+        // Using fetch directly since the table might not be in the generated types yet
+        const response = await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/messages?or=(sender_id.eq.${user.id},receiver_id.eq.${user.id})&order=created_at.asc`, {
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        
+        const data = await response.json();
+        return data as Message[];
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        return [] as Message[];
+      }
     },
     enabled: !!user,
     refetchInterval: 5000 // Refresh every 5 seconds
   });
 
-  // Get all message requests
-  const { data: messageRequests } = useQuery<MessageRequest[]>({
+  // Get all message requests - using a direct fetch as well
+  const { data: messageRequests } = useQuery({
     queryKey: ['messageRequests', user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      if (!user) return [] as MessageRequest[];
       
-      const { data, error } = await supabase
-        .from('message_requests')
-        .select('*')
-        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
         
-      if (error) throw error;
-      
-      return data || [];
+        // Using fetch directly since the table might not be in the generated types yet
+        const response = await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests?or=(sender_id.eq.${user.id},receiver_id.eq.${user.id})`, {
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        
+        const data = await response.json();
+        return data as MessageRequest[];
+      } catch (error) {
+        console.error("Error fetching message requests:", error);
+        return [] as MessageRequest[];
+      }
     },
     enabled: !!user,
     refetchInterval: 5000
@@ -112,6 +131,9 @@ export default function Messages() {
   const sendMessage = useMutation({
     mutationFn: async (newMessage: { content: string, receiver_id: string }) => {
       if (!user) throw new Error("Not authenticated");
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
       
       // Check if this is the first message to this user
       const existingRequest = messageRequests?.find(
@@ -124,22 +146,31 @@ export default function Messages() {
       
       // If no existing request and not sending to self
       if (!existingRequest && user.id !== newMessage.receiver_id) {
-        // Create a new message request
-        const { data: newRequest, error: requestError } = await supabase
-          .from('message_requests')
-          .insert({
-            sender_id: user.id,
-            receiver_id: newMessage.receiver_id,
-            status: 'pending',
-            messages_sent: 1
-          })
-          .select()
-          .single();
+        try {
+          // Create a new message request using fetch
+          const requestResponse = await fetch('https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests', {
+            method: 'POST',
+            headers: {
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({
+              sender_id: user.id,
+              receiver_id: newMessage.receiver_id,
+              status: 'pending',
+              messages_sent: 1
+            })
+          });
           
-        if (requestError) throw requestError;
-        
-        requestId = newRequest.id;
-        messagesRemaining = 2; // 3 messages allowed, 1 used
+          const newRequest = await requestResponse.json();
+          requestId = newRequest[0]?.id;
+          messagesRemaining = 2; // 3 messages allowed, 1 used
+        } catch (error) {
+          console.error("Error creating message request:", error);
+          throw new Error("Failed to create message request");
+        }
       } 
       // If existing request initiated by the current user and still pending
       else if (existingRequest && existingRequest.sender_id === user.id && existingRequest.status === 'pending') {
@@ -148,31 +179,51 @@ export default function Messages() {
           throw new Error("Message request limit reached. Wait for the other user to respond.");
         }
         
-        const { error: updateError } = await supabase
-          .from('message_requests')
-          .update({ messages_sent: existingRequest.messages_sent + 1 })
-          .eq('id', existingRequest.id);
+        try {
+          // Update message request using fetch
+          await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests?id=eq.${existingRequest.id}`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ messages_sent: existingRequest.messages_sent + 1 })
+          });
           
-        if (updateError) throw updateError;
-        
-        messagesRemaining = 3 - (existingRequest.messages_sent + 1);
+          messagesRemaining = 3 - (existingRequest.messages_sent + 1);
+        } catch (error) {
+          console.error("Error updating message request:", error);
+          throw new Error("Failed to update message request");
+        }
       }
       // If the request is 'accepted' or initiated by the other user, no need to update request
       
       // Finally, insert the actual message
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: user.id,
-          receiver_id: newMessage.receiver_id,
-          content: newMessage.content
-        })
-        .select()
-        .single();
+      try {
+        // Insert message using fetch
+        const messageResponse = await fetch('https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/messages', {
+          method: 'POST',
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({
+            sender_id: user.id,
+            receiver_id: newMessage.receiver_id,
+            content: newMessage.content,
+            is_read: false
+          })
+        });
         
-      if (error) throw error;
-      
-      return { message: data, messagesRemaining, requestStatus: existingRequest?.status || 'pending' };
+        const message = await messageResponse.json();
+        return { message: message[0], messagesRemaining, requestStatus: existingRequest?.status || 'pending' };
+      } catch (error) {
+        console.error("Error sending message:", error);
+        throw new Error("Failed to send message");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
@@ -187,14 +238,26 @@ export default function Messages() {
   // Accept message request mutation
   const acceptMessageRequest = useMutation({
     mutationFn: async (requestId: string) => {
-      const { error } = await supabase
-        .from('message_requests')
-        .update({ status: 'accepted' })
-        .eq('id', requestId);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
         
-      if (error) throw error;
-      
-      return requestId;
+        // Update message request using fetch
+        await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests?id=eq.${requestId}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status: 'accepted' })
+        });
+        
+        return requestId;
+      } catch (error) {
+        console.error("Error accepting message request:", error);
+        throw new Error("Failed to accept message request");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messageRequests'] });
@@ -210,16 +273,26 @@ export default function Messages() {
     mutationFn: async (senderId: string) => {
       if (!user) throw new Error("Not authenticated");
       
-      const { error } = await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('sender_id', senderId)
-        .eq('receiver_id', user.id)
-        .eq('is_read', false);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
         
-      if (error) throw error;
-      
-      return senderId;
+        // Update messages using fetch
+        await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/messages?sender_id=eq.${senderId}&receiver_id=eq.${user.id}&is_read=eq.false`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ is_read: true })
+        });
+        
+        return senderId;
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+        throw new Error("Failed to mark messages as read");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
