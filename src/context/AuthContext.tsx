@@ -10,6 +10,9 @@ interface Profile {
   avatar_url: string | null;
   location: string | null;
   about: string | null;
+  experience: string | null;
+  projects: string | null;
+  awards: string | null;
 }
 
 interface AuthContextType {
@@ -72,7 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, role, avatar_url, location, about')
+        .select('id, name, role, avatar_url, location, about, experience, projects, awards')
         .eq('id', userId)
         .single();
         
@@ -112,6 +115,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
   
   const signUp = async (email: string, password: string, name: string) => {
+    // Check if email already exists
+    const { data: existingUsers } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user?.id)
+      .single();
+    
+    if (existingUsers) {
+      throw new Error('Email already in use');
+    }
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -17,12 +18,32 @@ export default function Register() {
     
     try {
       setIsSubmitting(true);
+      
+      // First check if email is already in use
+      const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
+        email,
+        password: "dummy_password_just_to_check", // This will fail but tell us if the email exists
+      });
+      
+      if (!checkError) {
+        toast.error("Email already in use. Please use a different email address.");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // If we get here, email doesn't exist
       await signUp(email, password, name);
       toast.success("Account created successfully!");
+      
       // Redirect to profile setup page after successful registration
       navigate("/profile-setup");
     } catch (error: any) {
-      toast.error(`Registration failed: ${error.message}`);
+      // Check if error is about duplicate email
+      if (error.message?.toLowerCase().includes('email') && error.message?.toLowerCase().includes('already')) {
+        toast.error("Email already in use. Please use a different email address.");
+      } else {
+        toast.error(`Registration failed: ${error.message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }

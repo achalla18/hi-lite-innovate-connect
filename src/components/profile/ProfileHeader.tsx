@@ -139,7 +139,7 @@ export default function ProfileHeader({
           </div>
           {displayProfile?.id && (
             <div className="text-muted-foreground">
-              Profile URL: {window.location.origin}/user/{displayProfile.id}
+              Profile URL: <span className="font-mono text-xs bg-background px-2 py-1 rounded">{window.location.origin}/profile/{displayProfile.id}</span>
             </div>
           )}
         </div>

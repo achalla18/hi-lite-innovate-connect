@@ -209,60 +209,64 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
                 )}
               />
               
-              {/* New Fields */}
-              <FormField
-                control={form.control}
-                name="experience"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Experience</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Share your past work experience" 
-                        className="min-h-[100px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="projects"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current Projects</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Describe your current projects" 
-                        className="min-h-[100px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="awards"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Awards & Honors</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="List any awards or honors you've received" 
-                        className="min-h-[100px]"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* These fields are only shown in edit mode, not in initial setup */}
+              {!isInitialSetup && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="experience"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Experience</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Share your past work experience" 
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="projects"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Current Projects</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe your current projects" 
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="awards"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Awards & Honors</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="List any awards or honors you've received" 
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
               
               <div className="flex justify-end pt-4">
                 {!isInitialSetup && (

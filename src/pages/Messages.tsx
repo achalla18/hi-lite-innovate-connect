@@ -1,19 +1,31 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/layout/Navbar";
-import { Search, Send, Phone, Video, MoreVertical, X } from "lucide-react";
+import { Search, Send, Phone, Video, MoreVertical, X, Check, Clock, CheckCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface Message {
   id: string;
   sender_id: string;
   receiver_id: string;
   content: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+interface MessageRequest {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  messages_sent: number;
   created_at: string;
 }
 
@@ -28,12 +40,17 @@ interface Conversation {
   lastMessage: string;
   time: string;
   unread: number;
+  isMessageRequest: boolean;
+  messageRequestId?: string;
+  messagesRemaining?: number;
 }
 
 export default function Messages() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
   
   // Fetch user connections
   const { data: connections } = useQuery({
@@ -85,20 +102,209 @@ export default function Messages() {
     },
     enabled: !!connections && connections.length > 0
   });
-  
-  // Combine connection and profile data to create conversations
-  const conversations: Conversation[] = connectionUsers?.map(profile => ({
-    id: profile.id,
-    user: {
-      id: profile.id,
-      name: profile.name || 'User',
-      avatarUrl: profile.avatar_url || '/placeholder.svg',
-      status: Math.random() > 0.5 ? 'online' : 'offline', // Randomize for demo
+
+  // Get all messages
+  const { data: allMessages } = useQuery({
+    queryKey: ['messages', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
+        .order('created_at', { ascending: true });
+        
+      if (error) throw error;
+      
+      return data || [];
     },
-    lastMessage: "Click to start a conversation",
-    time: "Just now",
-    unread: 0
-  })) || [];
+    enabled: !!user,
+    refetchInterval: 5000 // Refresh every 5 seconds
+  });
+
+  // Get all message requests
+  const { data: messageRequests } = useQuery({
+    queryKey: ['messageRequests', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('message_requests')
+        .select('*')
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+        
+      if (error) throw error;
+      
+      return data || [];
+    },
+    enabled: !!user,
+    refetchInterval: 5000
+  });
+  
+  // Send message mutation
+  const sendMessage = useMutation({
+    mutationFn: async (newMessage: { content: string, receiver_id: string }) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      // Check if this is the first message to this user
+      const existingRequest = messageRequests?.find(
+        mr => (mr.sender_id === user.id && mr.receiver_id === newMessage.receiver_id) || 
+              (mr.sender_id === newMessage.receiver_id && mr.receiver_id === user.id)
+      );
+      
+      let requestId = existingRequest?.id;
+      let messagesRemaining = 3;
+      
+      // If no existing request and not sending to self
+      if (!existingRequest && user.id !== newMessage.receiver_id) {
+        // Create a new message request
+        const { data: newRequest, error: requestError } = await supabase
+          .from('message_requests')
+          .insert({
+            sender_id: user.id,
+            receiver_id: newMessage.receiver_id,
+            status: 'pending',
+            messages_sent: 1
+          })
+          .select()
+          .single();
+          
+        if (requestError) throw requestError;
+        
+        requestId = newRequest.id;
+        messagesRemaining = 2; // 3 messages allowed, 1 used
+      } 
+      // If existing request initiated by the current user and still pending
+      else if (existingRequest && existingRequest.sender_id === user.id && existingRequest.status === 'pending') {
+        // Increment messages_sent
+        if (existingRequest.messages_sent >= 3) {
+          throw new Error("Message request limit reached. Wait for the other user to respond.");
+        }
+        
+        const { error: updateError } = await supabase
+          .from('message_requests')
+          .update({ messages_sent: existingRequest.messages_sent + 1 })
+          .eq('id', existingRequest.id);
+          
+        if (updateError) throw updateError;
+        
+        messagesRemaining = 3 - (existingRequest.messages_sent + 1);
+      }
+      // If the request is 'accepted' or initiated by the other user, no need to update request
+      
+      // Finally, insert the actual message
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user.id,
+          receiver_id: newMessage.receiver_id,
+          content: newMessage.content
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      return { message: data, messagesRemaining, requestStatus: existingRequest?.status || 'pending' };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: ['messageRequests'] });
+      setMessage("");
+    },
+    onError: (error: any) => {
+      toast.error(error.message);
+    }
+  });
+  
+  // Accept message request mutation
+  const acceptMessageRequest = useMutation({
+    mutationFn: async (requestId: string) => {
+      const { error } = await supabase
+        .from('message_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
+        
+      if (error) throw error;
+      
+      return requestId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messageRequests'] });
+      toast.success("Message request accepted");
+    },
+    onError: () => {
+      toast.error("Failed to accept message request");
+    }
+  });
+  
+  // Mark messages as read mutation
+  const markMessagesAsRead = useMutation({
+    mutationFn: async (senderId: string) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('sender_id', senderId)
+        .eq('receiver_id', user.id)
+        .eq('is_read', false);
+        
+      if (error) throw error;
+      
+      return senderId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+    }
+  });
+  
+  // Group messages by conversation and get last message
+  const conversations: Conversation[] = connectionUsers?.map(connectedUser => {
+    // Get messages for this conversation
+    const conversationMessages = allMessages?.filter(
+      msg => (msg.sender_id === user?.id && msg.receiver_id === connectedUser.id) || 
+             (msg.sender_id === connectedUser.id && msg.receiver_id === user?.id)
+    ) || [];
+    
+    // Get last message
+    const lastMsg = conversationMessages.length > 0 
+      ? conversationMessages[conversationMessages.length - 1] 
+      : null;
+    
+    // Count unread messages
+    const unreadCount = conversationMessages.filter(
+      msg => msg.sender_id === connectedUser.id && !msg.is_read
+    ).length;
+    
+    // Check if there's a message request for this conversation
+    const request = messageRequests?.find(
+      mr => (mr.sender_id === user?.id && mr.receiver_id === connectedUser.id) || 
+            (mr.sender_id === connectedUser.id && mr.receiver_id === user?.id)
+    );
+    
+    let messagesRemaining = 3;
+    if (request && request.sender_id === user?.id && request.status === 'pending') {
+      messagesRemaining = 3 - request.messages_sent;
+    }
+    
+    return {
+      id: connectedUser.id,
+      user: {
+        id: connectedUser.id,
+        name: connectedUser.name || 'User',
+        avatarUrl: connectedUser.avatar_url || '/placeholder.svg',
+        status: Math.random() > 0.5 ? 'online' : 'offline', // Randomize for demo
+      },
+      lastMessage: lastMsg ? lastMsg.content : "Start a conversation",
+      time: lastMsg ? formatDistanceToNow(new Date(lastMsg.created_at), { addSuffix: true }) : "",
+      unread: unreadCount,
+      isMessageRequest: request?.status === 'pending',
+      messageRequestId: request?.id,
+      messagesRemaining: messagesRemaining
+    };
+  }) || [];
   
   // Set the first conversation as selected by default
   useEffect(() => {
@@ -107,39 +313,42 @@ export default function Messages() {
     }
   }, [conversations, selectedConversation]);
   
+  // Mark messages as read when conversation is selected
+  useEffect(() => {
+    if (user && selectedConversation) {
+      markMessagesAsRead.mutate(selectedConversation);
+    }
+  }, [selectedConversation, user]);
+  
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [allMessages]);
+  
   // Get the selected conversation data
   const selectedConversationData = conversations.find(c => c.id === selectedConversation);
   
-  // In a real app, we would fetch real messages from a database
-  // For now, we'll generate sample messages based on the selected user
-  const selectedMessages = selectedConversation ? [
-    {
-      id: "msg1",
-      sender: selectedConversation === conversations[0]?.id ? "other" : "self",
-      text: `Hi there! This is a sample message to demonstrate the UI. In a real app, these messages would come from the database.`,
-      time: "10 minutes ago"
-    },
-    {
-      id: "msg2",
-      sender: "self",
-      text: "Hi! This is a demonstration of the messaging interface. Messages are not yet stored in the database.",
-      time: "5 minutes ago"
-    },
-    {
-      id: "msg3",
-      sender: selectedConversation === conversations[0]?.id ? "self" : "other",
-      text: "To build a complete messaging system, we would need to create database tables for storing messages and implement real-time functionality.",
-      time: "Just now"
-    }
-  ] : [];
+  // Get messages for the selected conversation
+  const selectedMessages = selectedConversation ? 
+    allMessages?.filter(
+      msg => (msg.sender_id === user?.id && msg.receiver_id === selectedConversation) || 
+             (msg.sender_id === selectedConversation && msg.receiver_id === user?.id)
+    ).map(msg => ({
+      id: msg.id,
+      sender: msg.sender_id === user?.id ? "self" : "other",
+      text: msg.content,
+      time: formatDistanceToNow(new Date(msg.created_at), { addSuffix: true }),
+      isRead: msg.is_read
+    })) : [];
   
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !selectedConversation) return;
     
-    // In a real app, we would send the message to the database
-    toast.success("Message functionality will be implemented in the next phase");
-    setMessage("");
+    sendMessage.mutate({
+      content: message,
+      receiver_id: selectedConversation
+    });
   };
   
   return (
@@ -188,7 +397,10 @@ export default function Messages() {
                         <span className="text-xs text-muted-foreground">{conv.time}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <p className="text-sm text-muted-foreground truncate">{conv.lastMessage}</p>
+                        <p className="text-sm text-muted-foreground truncate flex items-center">
+                          {conv.isMessageRequest && <Clock className="h-3 w-3 mr-1 text-hilite-purple" />}
+                          {conv.lastMessage}
+                        </p>
                         {conv.unread > 0 && (
                           <span className="bg-hilite-purple text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                             {conv.unread}
@@ -246,19 +458,63 @@ export default function Messages() {
               
               {/* Messages */}
               <div className="flex-1 p-4 overflow-y-auto">
-                {selectedMessages.map(msg => (
-                  <div
-                    key={msg.id}
-                    className={`mb-4 flex ${msg.sender === "self" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div className={`max-w-[80%] ${msg.sender === "self" ? "bg-hilite-purple text-white" : "bg-accent"} rounded-lg px-4 py-2`}>
-                      <p>{msg.text}</p>
-                      <div className={`text-xs mt-1 ${msg.sender === "self" ? "text-white/80" : "text-muted-foreground"}`}>
-                        {msg.time}
+                {/* Message request notification */}
+                {selectedConversationData?.isMessageRequest && selectedConversationData?.messageRequestId && (
+                  <Alert className="mb-4 border-hilite-purple bg-hilite-purple/5">
+                    <AlertTitle className="flex items-center">
+                      <Clock className="h-4 w-4 mr-2" />
+                      Message Request
+                    </AlertTitle>
+                    <AlertDescription className="space-y-2">
+                      {user?.id === selectedConversation ? (
+                        <p>This is a message request. You've sent {3 - (selectedConversationData?.messagesRemaining || 0)}/3 messages.</p>
+                      ) : (
+                        <p>You've received a message request from {selectedConversationData?.user.name}.</p>
+                      )}
+                      
+                      {user?.id !== selectedConversation && (
+                        <Button 
+                          size="sm" 
+                          className="bg-hilite-purple hover:bg-hilite-purple/90"
+                          onClick={() => acceptMessageRequest.mutate(selectedConversationData.messageRequestId!)}
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          Accept Request
+                        </Button>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {selectedMessages && selectedMessages.length > 0 ? (
+                  selectedMessages.map(msg => (
+                    <div
+                      key={msg.id}
+                      className={`mb-4 flex ${msg.sender === "self" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div className={`max-w-[80%] ${msg.sender === "self" ? "bg-hilite-purple text-white" : "bg-accent"} rounded-lg px-4 py-2`}>
+                        <p>{msg.text}</p>
+                        <div className={`text-xs mt-1 flex items-center ${msg.sender === "self" ? "text-white/80 justify-end" : "text-muted-foreground"}`}>
+                          {msg.time}
+                          {msg.sender === "self" && (
+                            <span className="ml-1">
+                              {msg.isRead ? (
+                                <CheckCheck className="h-3 w-3" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    No messages yet. Start the conversation!
                   </div>
-                ))}
+                )}
+                <div ref={messagesEndRef} />
               </div>
               
               {/* Message Input */}
@@ -268,17 +524,40 @@ export default function Messages() {
                     type="text"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a message..."
+                    placeholder={
+                      selectedConversationData?.isMessageRequest && 
+                      selectedConversationData?.messagesRemaining !== undefined && 
+                      selectedConversationData?.messagesRemaining < 3
+                        ? `Type a message (${selectedConversationData?.messagesRemaining}/3 messages remaining)...`
+                        : "Type a message..."
+                    }
                     className="hilite-input flex-1"
+                    disabled={
+                      selectedConversationData?.isMessageRequest && 
+                      selectedConversationData?.messagesRemaining !== undefined && 
+                      selectedConversationData?.messagesRemaining <= 0
+                    }
                   />
                   <button
                     type="submit"
                     className="hilite-btn-primary"
-                    disabled={!message.trim()}
+                    disabled={
+                      !message.trim() || 
+                      (selectedConversationData?.isMessageRequest && 
+                       selectedConversationData?.messagesRemaining !== undefined && 
+                       selectedConversationData?.messagesRemaining <= 0)
+                    }
                   >
                     <Send className="h-5 w-5" />
                   </button>
                 </form>
+                {selectedConversationData?.isMessageRequest && 
+                 selectedConversationData?.messagesRemaining !== undefined && 
+                 selectedConversationData?.messagesRemaining <= 0 && (
+                  <div className="text-xs text-destructive mt-1">
+                    Message limit reached. Wait for {selectedConversationData?.user.name} to respond.
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -328,19 +607,63 @@ export default function Messages() {
               
               {/* Mobile Messages */}
               <div className="flex-1 p-3 overflow-y-auto">
-                {selectedMessages.map(msg => (
-                  <div
-                    key={msg.id}
-                    className={`mb-3 flex ${msg.sender === "self" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div className={`max-w-[80%] ${msg.sender === "self" ? "bg-hilite-purple text-white" : "bg-accent"} rounded-lg px-3 py-2`}>
-                      <p className="text-sm">{msg.text}</p>
-                      <div className={`text-xs mt-1 ${msg.sender === "self" ? "text-white/80" : "text-muted-foreground"}`}>
-                        {msg.time}
+                {/* Message request notification mobile */}
+                {selectedConversationData?.isMessageRequest && selectedConversationData?.messageRequestId && (
+                  <Alert className="mb-3 border-hilite-purple bg-hilite-purple/5 text-sm">
+                    <AlertTitle className="text-sm flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Message Request
+                    </AlertTitle>
+                    <AlertDescription className="text-xs space-y-2">
+                      {user?.id === selectedConversation ? (
+                        <p>This is a message request. You've sent {3 - (selectedConversationData?.messagesRemaining || 0)}/3 messages.</p>
+                      ) : (
+                        <p>Message request from {selectedConversationData?.user.name}.</p>
+                      )}
+                      
+                      {user?.id !== selectedConversation && (
+                        <Button 
+                          size="sm" 
+                          className="bg-hilite-purple hover:bg-hilite-purple/90 text-xs py-1 h-7"
+                          onClick={() => acceptMessageRequest.mutate(selectedConversationData.messageRequestId!)}
+                        >
+                          <Check className="h-3 w-3 mr-1" />
+                          Accept
+                        </Button>
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                {selectedMessages && selectedMessages.length > 0 ? (
+                  selectedMessages.map(msg => (
+                    <div
+                      key={msg.id}
+                      className={`mb-3 flex ${msg.sender === "self" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div className={`max-w-[80%] ${msg.sender === "self" ? "bg-hilite-purple text-white" : "bg-accent"} rounded-lg px-3 py-2`}>
+                        <p className="text-sm">{msg.text}</p>
+                        <div className={`text-xs mt-1 flex items-center ${msg.sender === "self" ? "text-white/80 justify-end" : "text-muted-foreground"}`}>
+                          {msg.time}
+                          {msg.sender === "self" && (
+                            <span className="ml-1">
+                              {msg.isRead ? (
+                                <CheckCheck className="h-3 w-3" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-8 text-sm">
+                    No messages yet. Start the conversation!
                   </div>
-                ))}
+                )}
+                <div ref={messagesEndRef} />
               </div>
               
               {/* Mobile Message Input */}
@@ -350,17 +673,40 @@ export default function Messages() {
                     type="text"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a message..."
+                    placeholder={
+                      selectedConversationData?.isMessageRequest && 
+                      selectedConversationData?.messagesRemaining !== undefined && 
+                      selectedConversationData?.messagesRemaining < 3
+                        ? `Type (${selectedConversationData?.messagesRemaining}/3 left)...`
+                        : "Type a message..."
+                    }
                     className="hilite-input flex-1"
+                    disabled={
+                      selectedConversationData?.isMessageRequest && 
+                      selectedConversationData?.messagesRemaining !== undefined && 
+                      selectedConversationData?.messagesRemaining <= 0
+                    }
                   />
                   <button
                     type="submit"
                     className="hilite-btn-primary"
-                    disabled={!message.trim()}
+                    disabled={
+                      !message.trim() || 
+                      (selectedConversationData?.isMessageRequest && 
+                       selectedConversationData?.messagesRemaining !== undefined && 
+                       selectedConversationData?.messagesRemaining <= 0)
+                    }
                   >
                     <Send className="h-5 w-5" />
                   </button>
                 </form>
+                {selectedConversationData?.isMessageRequest && 
+                 selectedConversationData?.messagesRemaining !== undefined && 
+                 selectedConversationData?.messagesRemaining <= 0 && (
+                  <div className="text-xs text-destructive mt-1">
+                    Message limit reached. Wait for a response.
+                  </div>
+                )}
               </div>
             </div>
           )}
