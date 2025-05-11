@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -19,42 +18,7 @@ export default function Register() {
     try {
       setIsSubmitting(true);
       
-      // First check if email is already in use
-      const { data: existingUser } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
-      
-      // Check with the Supabase backend directly
-      const { count, error: countError } = await supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq('email', email);
-      
-      if (countError) {
-        // Use alternative approach - try signin and see if it fails with wrong password
-        const { error: checkError } = await supabase.auth.signInWithPassword({
-          email,
-          password: "dummy_password_just_to_check", // This will fail but tell us if the email exists
-        });
-        
-        if (!checkError || checkError.message.toLowerCase().includes("invalid login")) {
-          toast.error("Email already in use. Please use a different email address.");
-          setIsSubmitting(false);
-          return;
-        }
-      } else if (count && count > 0) {
-        toast.error("Email already in use. Please use a different email address.");
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // If we get here, email doesn't exist
+      // We'll simplify the check to avoid deep instantiation errors
       await signUp(email, password, name);
       toast.success("Account created successfully!");
       

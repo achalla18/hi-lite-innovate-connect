@@ -10,7 +10,6 @@ interface Profile {
   avatar_url: string | null;
   location: string | null;
   about: string | null;
-  experience: string | null;
   projects: string | null;
   awards: string | null;
 }
@@ -75,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, role, avatar_url, location, about, experience, projects, awards')
+        .select('id, name, role, avatar_url, location, about, projects, awards')
         .eq('id', userId)
         .single();
         
@@ -84,7 +83,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      setProfile(data);
+      if (data) {
+        setProfile(data as Profile);
+      }
     } catch (error) {
       console.error('Profile fetch error:', error);
     }

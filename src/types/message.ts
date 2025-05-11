@@ -32,3 +32,11 @@ export interface Conversation {
   messageRequestId?: string;
   messagesRemaining?: number;
 }
+
+export interface MessageDisplay {
+  id: string;
+  sender: "self" | "other";
+  text: string;
+  time: string;
+  isRead: boolean;
+}

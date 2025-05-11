@@ -1,21 +1,21 @@
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useEffect } from "react";
 import Navbar from "@/components/layout/Navbar";
-import { Search, Send, Phone, Video, MoreVertical, X, Check, Clock, CheckCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { Message, MessageRequest, Conversation } from "@/types/message";
+import { Message, MessageRequest, Conversation, MessageDisplay } from "@/types/message";
+import ConversationList from "@/components/messages/ConversationList";
+import ConversationView from "@/components/messages/ConversationView";
+import MobileConversationView from "@/components/messages/MobileConversationView";
+import EmptyConversation from "@/components/messages/EmptyConversation";
+import * as messageService from "@/services/messageService";
 
 export default function Messages() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   
   // Fetch user connections
@@ -69,59 +69,23 @@ export default function Messages() {
     enabled: !!connections && connections.length > 0
   });
 
-  // Get all messages - using a direct fetch to handle the table that might not be in types yet
+  // Get all messages
   const { data: allMessages } = useQuery({
     queryKey: ['messages', user?.id],
     queryFn: async () => {
       if (!user) return [] as Message[];
-      
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
-        
-        // Using fetch directly since the table might not be in the generated types yet
-        const response = await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/messages?or=(sender_id.eq.${user.id},receiver_id.eq.${user.id})&order=created_at.asc`, {
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-        
-        const data = await response.json();
-        return data as Message[];
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-        return [] as Message[];
-      }
+      return messageService.getMessages(user.id);
     },
     enabled: !!user,
     refetchInterval: 5000 // Refresh every 5 seconds
   });
 
-  // Get all message requests - using a direct fetch as well
+  // Get all message requests
   const { data: messageRequests } = useQuery({
     queryKey: ['messageRequests', user?.id],
     queryFn: async () => {
       if (!user) return [] as MessageRequest[];
-      
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
-        
-        // Using fetch directly since the table might not be in the generated types yet
-        const response = await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests?or=(sender_id.eq.${user.id},receiver_id.eq.${user.id})`, {
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-        
-        const data = await response.json();
-        return data as MessageRequest[];
-      } catch (error) {
-        console.error("Error fetching message requests:", error);
-        return [] as MessageRequest[];
-      }
+      return messageService.getMessageRequests(user.id);
     },
     enabled: !!user,
     refetchInterval: 5000
@@ -132,103 +96,22 @@ export default function Messages() {
     mutationFn: async (newMessage: { content: string, receiver_id: string }) => {
       if (!user) throw new Error("Not authenticated");
       
-      const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-      
       // Check if this is the first message to this user
       const existingRequest = messageRequests?.find(
         mr => (mr.sender_id === user.id && mr.receiver_id === newMessage.receiver_id) || 
               (mr.sender_id === newMessage.receiver_id && mr.receiver_id === user.id)
       );
       
-      let requestId = existingRequest?.id;
-      let messagesRemaining = 3;
-      
-      // If no existing request and not sending to self
-      if (!existingRequest && user.id !== newMessage.receiver_id) {
-        try {
-          // Create a new message request using fetch
-          const requestResponse = await fetch('https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests', {
-            method: 'POST',
-            headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-              'Prefer': 'return=representation'
-            },
-            body: JSON.stringify({
-              sender_id: user.id,
-              receiver_id: newMessage.receiver_id,
-              status: 'pending',
-              messages_sent: 1
-            })
-          });
-          
-          const newRequest = await requestResponse.json();
-          requestId = newRequest[0]?.id;
-          messagesRemaining = 2; // 3 messages allowed, 1 used
-        } catch (error) {
-          console.error("Error creating message request:", error);
-          throw new Error("Failed to create message request");
-        }
-      } 
-      // If existing request initiated by the current user and still pending
-      else if (existingRequest && existingRequest.sender_id === user.id && existingRequest.status === 'pending') {
-        // Increment messages_sent
-        if (existingRequest.messages_sent >= 3) {
-          throw new Error("Message request limit reached. Wait for the other user to respond.");
-        }
-        
-        try {
-          // Update message request using fetch
-          await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests?id=eq.${existingRequest.id}`, {
-            method: 'PATCH',
-            headers: {
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ messages_sent: existingRequest.messages_sent + 1 })
-          });
-          
-          messagesRemaining = 3 - (existingRequest.messages_sent + 1);
-        } catch (error) {
-          console.error("Error updating message request:", error);
-          throw new Error("Failed to update message request");
-        }
-      }
-      // If the request is 'accepted' or initiated by the other user, no need to update request
-      
-      // Finally, insert the actual message
-      try {
-        // Insert message using fetch
-        const messageResponse = await fetch('https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/messages', {
-          method: 'POST',
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-          },
-          body: JSON.stringify({
-            sender_id: user.id,
-            receiver_id: newMessage.receiver_id,
-            content: newMessage.content,
-            is_read: false
-          })
-        });
-        
-        const message = await messageResponse.json();
-        return { message: message[0], messagesRemaining, requestStatus: existingRequest?.status || 'pending' };
-      } catch (error) {
-        console.error("Error sending message:", error);
-        throw new Error("Failed to send message");
-      }
+      return messageService.sendMessage(
+        user.id,
+        newMessage.receiver_id,
+        newMessage.content,
+        existingRequest
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
       queryClient.invalidateQueries({ queryKey: ['messageRequests'] });
-      setMessage("");
     },
     onError: (error: any) => {
       toast.error(error.message);
@@ -238,26 +121,7 @@ export default function Messages() {
   // Accept message request mutation
   const acceptMessageRequest = useMutation({
     mutationFn: async (requestId: string) => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
-        
-        // Update message request using fetch
-        await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/message_requests?id=eq.${requestId}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: 'accepted' })
-        });
-        
-        return requestId;
-      } catch (error) {
-        console.error("Error accepting message request:", error);
-        throw new Error("Failed to accept message request");
-      }
+      return messageService.acceptMessageRequest(requestId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messageRequests'] });
@@ -272,27 +136,7 @@ export default function Messages() {
   const markMessagesAsRead = useMutation({
     mutationFn: async (senderId: string) => {
       if (!user) throw new Error("Not authenticated");
-      
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
-        
-        // Update messages using fetch
-        await fetch(`https://dnshwngijsnbttiivbbf.supabase.co/rest/v1/messages?sender_id=eq.${senderId}&receiver_id=eq.${user.id}&is_read=eq.false`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc2h3bmdpanNuYnR0aWl2YmJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY0ODI0MjIsImV4cCI6MjA2MjA1ODQyMn0.h0kpjgOOcBXfyNszdRrX6pHuac4n0mUq4hKifOpg92w',
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ is_read: true })
-        });
-        
-        return senderId;
-      } catch (error) {
-        console.error("Error marking messages as read:", error);
-        throw new Error("Failed to mark messages as read");
-      }
+      return messageService.markMessagesAsRead(user.id, senderId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['messages'] });
@@ -359,16 +203,11 @@ export default function Messages() {
     }
   }, [selectedConversation, user]);
   
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [allMessages]);
-  
   // Get the selected conversation data
   const selectedConversationData = conversations.find(c => c.id === selectedConversation);
   
   // Get messages for the selected conversation
-  const selectedMessages = selectedConversation ? 
+  const selectedMessages: MessageDisplay[] = selectedConversation ? 
     allMessages?.filter(
       msg => (msg.sender_id === user?.id && msg.receiver_id === selectedConversation) || 
              (msg.sender_id === selectedConversation && msg.receiver_id === user?.id)
@@ -380,12 +219,11 @@ export default function Messages() {
       isRead: msg.is_read
     })) : [];
   
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || !selectedConversation) return;
+  const handleSendMessage = (content: string) => {
+    if (!selectedConversation) return;
     
     sendMessage.mutate({
-      content: message,
+      content: content,
       receiver_id: selectedConversation
     });
   };
@@ -397,357 +235,34 @@ export default function Messages() {
       <main className="flex-1 container py-6">
         <div className="bg-card border rounded-lg shadow-sm h-[calc(100vh-12rem)] flex overflow-hidden">
           {/* Conversations List */}
-          <div className="w-full md:w-80 border-r">
-            <div className="p-3 border-b">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="search"
-                  placeholder="Search messages..."
-                  className="hilite-input w-full pl-10"
-                />
-              </div>
-            </div>
-            
-            <div className="h-[calc(100vh-15rem)] overflow-y-auto">
-              {conversations.length > 0 ? (
-                conversations.map(conv => (
-                  <div
-                    key={conv.id}
-                    onClick={() => setSelectedConversation(conv.id)}
-                    className={`p-3 flex items-center space-x-3 cursor-pointer hover:bg-accent ${selectedConversation === conv.id ? 'bg-accent' : ''}`}
-                  >
-                    <div className="relative">
-                      <div className="h-12 w-12 rounded-full bg-hilite-gray overflow-hidden">
-                        <img
-                          src={conv.user.avatarUrl}
-                          alt={conv.user.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      {conv.user.status === "online" && (
-                        <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-500 border-2 border-card"></div>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-bold truncate">{conv.user.name}</h3>
-                        <span className="text-xs text-muted-foreground">{conv.time}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <p className="text-sm text-muted-foreground truncate flex items-center">
-                          {conv.isMessageRequest && <Clock className="h-3 w-3 mr-1 text-hilite-purple" />}
-                          {conv.lastMessage}
-                        </p>
-                        {conv.unread > 0 && (
-                          <span className="bg-hilite-purple text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                            {conv.unread}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-6 text-center">
-                  <p className="text-muted-foreground">
-                    Connect with other users to start messaging
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+          <ConversationList
+            conversations={conversations}
+            selectedConversation={selectedConversation}
+            onSelectConversation={setSelectedConversation}
+          />
           
           {/* Conversation View */}
-          {selectedConversation ? (
-            <div className="hidden md:flex flex-col flex-1">
-              {/* Conversation Header */}
-              <div className="p-3 border-b flex justify-between items-center">
-                <div className="flex items-center space-x-3">
-                  <Link to={`/profile/${selectedConversationData?.user.id}`} className="h-10 w-10 rounded-full bg-hilite-gray overflow-hidden">
-                    <img
-                      src={selectedConversationData?.user.avatarUrl}
-                      alt={selectedConversationData?.user.name}
-                      className="h-full w-full object-cover"
-                    />
-                  </Link>
-                  <div>
-                    <Link to={`/profile/${selectedConversationData?.user.id}`} className="font-bold">
-                      {selectedConversationData?.user.name}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedConversationData?.user.status === "online" ? "Online" : "Offline"}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button className="p-2 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground">
-                    <Phone className="h-5 w-5" />
-                  </button>
-                  <button className="p-2 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground">
-                    <Video className="h-5 w-5" />
-                  </button>
-                  <button className="p-2 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground">
-                    <MoreVertical className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
+          {selectedConversation && selectedConversationData ? (
+            <>
+              <ConversationView
+                currentUserId={user?.id}
+                selectedConversation={selectedConversationData}
+                messages={selectedMessages}
+                onSendMessage={handleSendMessage}
+                onAcceptRequest={(requestId) => acceptMessageRequest.mutate(requestId)}
+              />
               
-              {/* Messages */}
-              <div className="flex-1 p-4 overflow-y-auto">
-                {/* Message request notification */}
-                {selectedConversationData?.isMessageRequest && selectedConversationData?.messageRequestId && (
-                  <Alert className="mb-4 border-hilite-purple bg-hilite-purple/5">
-                    <AlertTitle className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Message Request
-                    </AlertTitle>
-                    <AlertDescription className="space-y-2">
-                      {user?.id === selectedConversation ? (
-                        <p>This is a message request. You've sent {3 - (selectedConversationData?.messagesRemaining || 0)}/3 messages.</p>
-                      ) : (
-                        <p>You've received a message request from {selectedConversationData?.user.name}.</p>
-                      )}
-                      
-                      {user?.id !== selectedConversation && (
-                        <Button 
-                          size="sm" 
-                          className="bg-hilite-purple hover:bg-hilite-purple/90"
-                          onClick={() => acceptMessageRequest.mutate(selectedConversationData.messageRequestId!)}
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          Accept Request
-                        </Button>
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                {selectedMessages && selectedMessages.length > 0 ? (
-                  selectedMessages.map(msg => (
-                    <div
-                      key={msg.id}
-                      className={`mb-4 flex ${msg.sender === "self" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div className={`max-w-[80%] ${msg.sender === "self" ? "bg-hilite-purple text-white" : "bg-accent"} rounded-lg px-4 py-2`}>
-                        <p>{msg.text}</p>
-                        <div className={`text-xs mt-1 flex items-center ${msg.sender === "self" ? "text-white/80 justify-end" : "text-muted-foreground"}`}>
-                          {msg.time}
-                          {msg.sender === "self" && (
-                            <span className="ml-1">
-                              {msg.isRead ? (
-                                <CheckCheck className="h-3 w-3" />
-                              ) : (
-                                <Check className="h-3 w-3" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    No messages yet. Start the conversation!
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-              
-              {/* Message Input */}
-              <div className="p-3 border-t">
-                <form onSubmit={handleSendMessage} className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder={
-                      selectedConversationData?.isMessageRequest && 
-                      selectedConversationData?.messagesRemaining !== undefined && 
-                      selectedConversationData?.messagesRemaining < 3
-                        ? `Type a message (${selectedConversationData?.messagesRemaining}/3 messages remaining)...`
-                        : "Type a message..."
-                    }
-                    className="hilite-input flex-1"
-                    disabled={
-                      selectedConversationData?.isMessageRequest && 
-                      selectedConversationData?.messagesRemaining !== undefined && 
-                      selectedConversationData?.messagesRemaining <= 0
-                    }
-                  />
-                  <button
-                    type="submit"
-                    className="hilite-btn-primary"
-                    disabled={
-                      !message.trim() || 
-                      (selectedConversationData?.isMessageRequest && 
-                       selectedConversationData?.messagesRemaining !== undefined && 
-                       selectedConversationData?.messagesRemaining <= 0)
-                    }
-                  >
-                    <Send className="h-5 w-5" />
-                  </button>
-                </form>
-                {selectedConversationData?.isMessageRequest && 
-                 selectedConversationData?.messagesRemaining !== undefined && 
-                 selectedConversationData?.messagesRemaining <= 0 && (
-                  <div className="text-xs text-destructive mt-1">
-                    Message limit reached. Wait for {selectedConversationData?.user.name} to respond.
-                  </div>
-                )}
-              </div>
-            </div>
+              <MobileConversationView
+                currentUserId={user?.id}
+                selectedConversation={selectedConversationData}
+                messages={selectedMessages}
+                onBack={() => setSelectedConversation(null)}
+                onSendMessage={handleSendMessage}
+                onAcceptRequest={(requestId) => acceptMessageRequest.mutate(requestId)}
+              />
+            </>
           ) : (
-            <div className="hidden md:flex flex-col flex-1 items-center justify-center p-6 text-center">
-              <div className="mb-4 p-4 rounded-full bg-hilite-light-purple">
-                <Send className="h-8 w-8 text-hilite-purple" />
-              </div>
-              <h2 className="text-xl font-bold mb-2">Your Messages</h2>
-              <p className="text-muted-foreground max-w-md">
-                Select a conversation to start chatting or connect with your network to send new messages.
-              </p>
-            </div>
-          )}
-          
-          {/* Mobile Conversation View */}
-          {selectedConversation && (
-            <div className="md:hidden flex flex-col flex-1">
-              {/* Mobile Conversation Header */}
-              <div className="p-3 border-b flex justify-between items-center">
-                <div className="flex items-center space-x-3">
-                  <button 
-                    onClick={() => setSelectedConversation(null)}
-                    className="p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                  <Link to={`/profile/${selectedConversationData?.user.id}`} className="h-8 w-8 rounded-full bg-hilite-gray overflow-hidden">
-                    <img
-                      src={selectedConversationData?.user.avatarUrl}
-                      alt={selectedConversationData?.user.name}
-                      className="h-full w-full object-cover"
-                    />
-                  </Link>
-                  <div>
-                    <Link to={`/profile/${selectedConversationData?.user.id}`} className="font-bold">
-                      {selectedConversationData?.user.name}
-                    </Link>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-1">
-                  <button className="p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground">
-                    <MoreVertical className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-              
-              {/* Mobile Messages */}
-              <div className="flex-1 p-3 overflow-y-auto">
-                {/* Message request notification mobile */}
-                {selectedConversationData?.isMessageRequest && selectedConversationData?.messageRequestId && (
-                  <Alert className="mb-3 border-hilite-purple bg-hilite-purple/5 text-sm">
-                    <AlertTitle className="text-sm flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Message Request
-                    </AlertTitle>
-                    <AlertDescription className="text-xs space-y-2">
-                      {user?.id === selectedConversation ? (
-                        <p>This is a message request. You've sent {3 - (selectedConversationData?.messagesRemaining || 0)}/3 messages.</p>
-                      ) : (
-                        <p>Message request from {selectedConversationData?.user.name}.</p>
-                      )}
-                      
-                      {user?.id !== selectedConversation && (
-                        <Button 
-                          size="sm" 
-                          className="bg-hilite-purple hover:bg-hilite-purple/90 text-xs py-1 h-7"
-                          onClick={() => acceptMessageRequest.mutate(selectedConversationData.messageRequestId!)}
-                        >
-                          <Check className="h-3 w-3 mr-1" />
-                          Accept
-                        </Button>
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                )}
-                
-                {selectedMessages && selectedMessages.length > 0 ? (
-                  selectedMessages.map(msg => (
-                    <div
-                      key={msg.id}
-                      className={`mb-3 flex ${msg.sender === "self" ? "justify-end" : "justify-start"}`}
-                    >
-                      <div className={`max-w-[80%] ${msg.sender === "self" ? "bg-hilite-purple text-white" : "bg-accent"} rounded-lg px-3 py-2`}>
-                        <p className="text-sm">{msg.text}</p>
-                        <div className={`text-xs mt-1 flex items-center ${msg.sender === "self" ? "text-white/80 justify-end" : "text-muted-foreground"}`}>
-                          {msg.time}
-                          {msg.sender === "self" && (
-                            <span className="ml-1">
-                              {msg.isRead ? (
-                                <CheckCheck className="h-3 w-3" />
-                              ) : (
-                                <Check className="h-3 w-3" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center text-muted-foreground py-8 text-sm">
-                    No messages yet. Start the conversation!
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-              
-              {/* Mobile Message Input */}
-              <div className="p-2 border-t">
-                <form onSubmit={handleSendMessage} className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder={
-                      selectedConversationData?.isMessageRequest && 
-                      selectedConversationData?.messagesRemaining !== undefined && 
-                      selectedConversationData?.messagesRemaining < 3
-                        ? `Type (${selectedConversationData?.messagesRemaining}/3 left)...`
-                        : "Type a message..."
-                    }
-                    className="hilite-input flex-1"
-                    disabled={
-                      selectedConversationData?.isMessageRequest && 
-                      selectedConversationData?.messagesRemaining !== undefined && 
-                      selectedConversationData?.messagesRemaining <= 0
-                    }
-                  />
-                  <button
-                    type="submit"
-                    className="hilite-btn-primary"
-                    disabled={
-                      !message.trim() || 
-                      (selectedConversationData?.isMessageRequest && 
-                       selectedConversationData?.messagesRemaining !== undefined && 
-                       selectedConversationData?.messagesRemaining <= 0)
-                    }
-                  >
-                    <Send className="h-5 w-5" />
-                  </button>
-                </form>
-                {selectedConversationData?.isMessageRequest && 
-                 selectedConversationData?.messagesRemaining !== undefined && 
-                 selectedConversationData?.messagesRemaining <= 0 && (
-                  <div className="text-xs text-destructive mt-1">
-                    Message limit reached. Wait for a response.
-                  </div>
-                )}
-              </div>
-            </div>
+            <EmptyConversation />
           )}
         </div>
       </main>
