@@ -142,9 +142,19 @@ export default function Profile() {
               isCurrentUser={isCurrentUser} 
               initialBio={viewedProfile?.about || ""}
             />
+            
             <FeaturedSection isCurrentUser={isCurrentUser} />
-            <ExperienceSection isCurrentUser={isCurrentUser} />
-            <EducationSection isCurrentUser={isCurrentUser} />
+            
+            <ExperienceSection 
+              userId={userId || ""} 
+              isCurrentUser={isCurrentUser} 
+            />
+            
+            <EducationSection 
+              userId={userId || ""} 
+              isCurrentUser={isCurrentUser} 
+            />
+            
             <ProjectsSection isCurrentUser={isCurrentUser} />
             
             {/* User's Posts */}
@@ -163,7 +173,7 @@ export default function Profile() {
               <AdminPanel />
             )}
             
-            <UserClubs />
+            <UserClubs userId={userId || ""} isCurrentUser={isCurrentUser} />
           </div>
         </div>
       </main>
