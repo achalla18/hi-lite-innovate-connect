@@ -27,28 +27,6 @@ export default function ProfileHeader({
   
   // Use the provided profile or fall back to the current user's profile
   const displayProfile = profile || currentUserProfile;
-  
-  const { data: education } = useQuery({
-    queryKey: ['profileEducation', profile?.id || user?.id],
-    queryFn: async () => {
-      if (!displayProfile?.id) return null;
-      
-      // In a real app, this would fetch from an education table
-      return null;
-    },
-    enabled: !!displayProfile?.id
-  });
-  
-  const { data: work } = useQuery({
-    queryKey: ['profileWork', profile?.id || user?.id],
-    queryFn: async () => {
-      if (!displayProfile?.id) return null;
-      
-      // In a real app, this would fetch from a work experience table
-      return null;
-    },
-    enabled: !!displayProfile?.id
-  });
 
   return (
     <div className="hilite-card mb-4">
@@ -103,29 +81,6 @@ export default function ProfileHeader({
             <div className="flex items-center">
               <MapPin className="h-4 w-4 mr-1" />
               <span>{displayProfile.location}</span>
-            </div>
-          )}
-          
-          {work && (
-            <div className="flex items-center">
-              <Briefcase className="h-4 w-4 mr-1" />
-              <Link to={`/company/${work.companyId}`} className="hover:text-hilite-dark-red">
-                {work.companyName}
-              </Link>
-            </div>
-          )}
-          
-          {education && (
-            <div className="flex items-center">
-              <GraduationCap className="h-4 w-4 mr-1" />
-              <Link to={`/school/${education.schoolId}`} className="hover:text-hilite-dark-red">
-                {education.schoolName}
-              </Link>
-              {education.isCurrentlyAttending && (
-                <span className="ml-2 px-2 py-0.5 bg-accent rounded-full text-xs font-mono">
-                  Currently Attending
-                </span>
-              )}
             </div>
           )}
         </div>

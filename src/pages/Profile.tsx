@@ -88,7 +88,7 @@ export default function Profile() {
     }
   };
 
-  // Fetch connections data
+  // Fetch connections data 
   const connectionsData = ProfileStats({ userId: userId || "" });
 
   // Check if user is admin/moderator
@@ -142,7 +142,7 @@ export default function Profile() {
               isCurrentUser={isCurrentUser} 
               initialBio={viewedProfile?.about || ""}
             />
-            <FeaturedSection />
+            <FeaturedSection isCurrentUser={isCurrentUser} />
             <ExperienceSection isCurrentUser={isCurrentUser} />
             <EducationSection isCurrentUser={isCurrentUser} />
             <ProjectsSection isCurrentUser={isCurrentUser} />

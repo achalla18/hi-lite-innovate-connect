@@ -1,10 +1,10 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { UserPlus, MessageSquare } from "lucide-react";
+import { UserPlus, MessageSquare, UserCheck, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 interface ConnectionButtonProps {
@@ -14,9 +14,10 @@ interface ConnectionButtonProps {
 
 export default function ConnectionButton({ userId, isCurrentUser }: ConnectionButtonProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   // Check if the current user is connected with the viewed profile
-  const { data: connectionStatus } = useQuery({
+  const { data: connectionStatus, isLoading } = useQuery({
     queryKey: ['connectionStatus', user?.id, userId],
     queryFn: async () => {
       if (!user || !userId || isCurrentUser) return null;
@@ -34,10 +35,11 @@ export default function ConnectionButton({ userId, isCurrentUser }: ConnectionBu
     enabled: !!user && !!userId && !isCurrentUser
   });
 
-  const handleSendConnectionRequest = async () => {
-    if (!user || !userId) return;
-    
-    try {
+  // Send connection request mutation
+  const sendConnectionMutation = useMutation({
+    mutationFn: async () => {
+      if (!user || !userId) throw new Error("User not authenticated");
+      
       const { error } = await supabase
         .from('connections')
         .insert({
@@ -47,30 +49,119 @@ export default function ConnectionButton({ userId, isCurrentUser }: ConnectionBu
         });
         
       if (error) throw error;
-      
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connectionStatus', user?.id, userId] });
+      queryClient.invalidateQueries({ queryKey: ['connections', userId] });
+      queryClient.invalidateQueries({ queryKey: ['connections', user?.id] });
       toast.success("Connection request sent!");
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       toast.error(`Failed to send connection request: ${error.message}`);
     }
-  };
+  });
 
-  if (isCurrentUser) {
+  // Accept connection request mutation
+  const acceptConnectionMutation = useMutation({
+    mutationFn: async () => {
+      if (!connectionStatus?.id) throw new Error("Connection not found");
+      
+      const { error } = await supabase
+        .from('connections')
+        .update({ status: 'accepted' })
+        .eq('id', connectionStatus.id);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connectionStatus', user?.id, userId] });
+      queryClient.invalidateQueries({ queryKey: ['connections', userId] });
+      queryClient.invalidateQueries({ queryKey: ['connections', user?.id] });
+      toast.success("Connection accepted!");
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to accept connection: ${error.message}`);
+    }
+  });
+
+  // Reject connection request mutation
+  const rejectConnectionMutation = useMutation({
+    mutationFn: async () => {
+      if (!connectionStatus?.id) throw new Error("Connection not found");
+      
+      const { error } = await supabase
+        .from('connections')
+        .delete()
+        .eq('id', connectionStatus.id);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['connectionStatus', user?.id, userId] });
+      queryClient.invalidateQueries({ queryKey: ['connections', userId] });
+      queryClient.invalidateQueries({ queryKey: ['connections', user?.id] });
+      toast.success("Connection request rejected");
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to reject connection request: ${error.message}`);
+    }
+  });
+
+  if (isCurrentUser || !user) {
     return null;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex gap-2 mb-4">
+        <Button disabled>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Loading...
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div className="flex gap-2 mb-4">
       {!connectionStatus ? (
         <Button 
-          onClick={handleSendConnectionRequest}
+          onClick={() => sendConnectionMutation.mutate()}
           className="bg-hilite-dark-red hover:bg-hilite-dark-red/90"
+          disabled={sendConnectionMutation.isPending}
         >
           <UserPlus className="h-4 w-4 mr-2" />
-          Connect
+          {sendConnectionMutation.isPending ? "Sending..." : "Connect"}
         </Button>
       ) : connectionStatus.status === 'pending' ? (
-        <Button variant="outline" disabled>
-          Request Pending
+        connectionStatus.user_id === user.id ? (
+          <Button variant="outline" disabled>
+            Request Pending
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => acceptConnectionMutation.mutate()}
+              className="bg-hilite-dark-red hover:bg-hilite-dark-red/90"
+              disabled={acceptConnectionMutation.isPending}
+            >
+              <UserCheck className="h-4 w-4 mr-2" />
+              {acceptConnectionMutation.isPending ? "Accepting..." : "Accept"}
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => rejectConnectionMutation.mutate()}
+              disabled={rejectConnectionMutation.isPending}
+            >
+              <X className="h-4 w-4 mr-2" />
+              {rejectConnectionMutation.isPending ? "Rejecting..." : "Reject"}
+            </Button>
+          </div>
+        )
+      ) : connectionStatus.status === 'accepted' ? (
+        <Button variant="outline" className="border-hilite-dark-red text-hilite-dark-red">
+          <UserCheck className="h-4 w-4 mr-2" />
+          Connected
         </Button>
       ) : null}
       <Button variant="outline">

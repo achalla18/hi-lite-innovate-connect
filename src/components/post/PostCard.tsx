@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Heart, Share2, Bookmark, Flag, MoreVertical, Trash2, Reply } from "lucide-react";
+import { MessageSquare, Heart, Share2, Bookmark, Flag, MoreVertical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -82,34 +82,35 @@ export default function PostCard({ post }: PostCardProps) {
         const { error } = await supabase
           .from('post_likes')
           .delete()
-          .eq('post_id', post.id)
-          .eq('user_id', user.id);
+          .match({
+            post_id: post.id,
+            user_id: user.id
+          });
           
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('post_likes')
-          .insert({ post_id: post.id, user_id: user.id });
+          .insert({ 
+            post_id: post.id, 
+            user_id: user.id 
+          });
           
         if (error) throw error;
       }
+      
+      // Invalidate queries to refresh data
+      return queryClient.invalidateQueries({ queryKey: ['userPosts'] });
     },
     onMutate: () => {
-      if (isLiked) {
-        setLikesCount(prev => prev - 1);
-      } else {
-        setLikesCount(prev => prev + 1);
-      }
+      // Optimistic update
       setIsLiked(!isLiked);
+      setLikesCount(prev => isLiked ? prev - 1 : prev + 1);
     },
     onError: (error) => {
       // Revert optimistic update
       setIsLiked(!isLiked);
-      if (isLiked) {
-        setLikesCount(prev => prev + 1);
-      } else {
-        setLikesCount(prev => prev - 1);
-      }
+      setLikesCount(prev => isLiked ? prev + 1 : prev - 1);
       toast.error(`Failed to ${isLiked ? 'unlike' : 'like'} post: ${error.message}`);
     }
   });
@@ -123,14 +124,19 @@ export default function PostCard({ post }: PostCardProps) {
         const { error } = await supabase
           .from('saved_posts')
           .delete()
-          .eq('post_id', post.id)
-          .eq('user_id', user.id);
+          .match({
+            post_id: post.id,
+            user_id: user.id
+          });
           
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('saved_posts')
-          .insert({ post_id: post.id, user_id: user.id });
+          .insert({ 
+            post_id: post.id, 
+            user_id: user.id 
+          });
           
         if (error) throw error;
       }
@@ -162,6 +168,7 @@ export default function PostCard({ post }: PostCardProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
       toast.success("Post deleted successfully");
     },
     onError: (error) => {

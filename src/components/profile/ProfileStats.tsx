@@ -40,5 +40,5 @@ export default function ProfileStats({ userId }: ProfileStatsProps) {
     enabled: !!userId
   });
 
-  return connectionsData;
+  return connectionsData || { total: 0, thisMonth: 0 };
 }
