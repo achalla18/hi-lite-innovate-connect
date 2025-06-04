@@ -35,40 +35,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    
     async function getSession() {
-      setIsLoading(true);
-      
-      // Get current session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-      setUser(currentSession?.user || null);
-      
-      if (currentSession?.user) {
-        await fetchProfile(currentSession.user.id);
-      }
-      
-      // Set up auth listener
-      const { data: { subscription } } = await supabase.auth.onAuthStateChange(
-        async (_event, updatedSession) => {
-          setSession(updatedSession);
-          setUser(updatedSession?.user || null);
+      try {
+        setIsLoading(true);
+        
+        // Get current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        if (mounted) {
+          setSession(currentSession);
+          setUser(currentSession?.user || null);
           
-          if (updatedSession?.user) {
-            await fetchProfile(updatedSession.user.id);
-          } else {
-            setProfile(null);
+          if (currentSession?.user) {
+            await fetchProfile(currentSession.user.id);
           }
         }
-      );
-      
-      setIsLoading(false);
-      
-      return () => {
-        subscription.unsubscribe();
-      };
+        
+        // Set up auth listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, updatedSession) => {
+            if (mounted) {
+              setSession(updatedSession);
+              setUser(updatedSession?.user || null);
+              
+              if (updatedSession?.user) {
+                await fetchProfile(updatedSession.user.id);
+              } else {
+                setProfile(null);
+              }
+            }
+          }
+        );
+        
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
     }
     
     getSession();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
   
   const fetchProfile = async (userId: string) => {
@@ -79,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single();
         
-      if (error) {
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
         console.error('Error fetching profile:', error);
         return;
       }
@@ -117,24 +134,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
   
   const signUp = async (email: string, password: string, name: string) => {
-    // Check if email already exists
-    const { data: existingUsers } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user?.id)
-      .single();
-    
-    if (existingUsers) {
-      throw new Error('Email already in use');
-    }
-    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
           name: name,
-        }
+        },
+        emailRedirectTo: `${window.location.origin}/`
       }
     });
     
@@ -143,8 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     // The profile will be created automatically via a database trigger
-    
-    // Return the user and session
     setUser(data.user);
     setSession(data.session);
   };

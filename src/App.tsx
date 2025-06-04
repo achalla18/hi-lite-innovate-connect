@@ -51,11 +51,11 @@ function AppRoutes() {
       {/* Public routes */}
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/forgot-password" element={user ? <Navigate to="/" replace /> : <ForgotPassword />} />
+      <Route path="/reset-password" element={user ? <Navigate to="/" replace /> : <ResetPassword />} />
       
       {/* Landing page for non-authenticated users */}
-      <Route path="/landing" element={<Landing />} />
+      <Route path="/landing" element={!user ? <Landing /> : <Navigate to="/" replace />} />
       
       {/* Protected routes */}
       <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />

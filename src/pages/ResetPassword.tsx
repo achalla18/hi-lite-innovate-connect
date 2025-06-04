@@ -1,136 +1,113 @@
 
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { GraduationCap } from "lucide-react";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hashPresent, setHashPresent] = useState(false);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-
+  
   useEffect(() => {
-    // Check if we have a hash in the URL (means coming from reset email)
-    const hash = window.location.hash;
-    setHashPresent(hash.length > 0);
-
-    if (!hash) {
-      toast.error("Invalid or expired password reset link");
+    // Check if we have the required tokens from the email link
+    const accessToken = searchParams.get('access_token');
+    const refreshToken = searchParams.get('refresh_token');
+    
+    if (!accessToken || !refreshToken) {
+      toast.error("Invalid reset link. Please request a new one.");
+      navigate("/forgot-password");
     }
-  }, []);
-
+  }, [searchParams, navigate]);
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
-      toast.error("Passwords don't match");
+      toast.error("Passwords do not match");
       return;
     }
     
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error("Password must be at least 6 characters long");
       return;
     }
     
-    setIsSubmitting(true);
-    
     try {
-      const { error } = await supabase.auth.updateUser({ password });
+      setIsSubmitting(true);
+      const { error } = await supabase.auth.updateUser({
+        password: password
+      });
       
       if (error) throw error;
       
       toast.success("Password updated successfully!");
       navigate("/login");
     } catch (error: any) {
-      toast.error(`Failed to reset password: ${error.message}`);
+      toast.error(`Error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
-
+  
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="hilite-card">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-hilite-dark-red">Hi-lite</h1>
-            <p className="text-muted-foreground">Reset your password</p>
-          </div>
-
-          {hashPresent ? (
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium mb-1">
-                    New Password
-                  </label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full"
-                    placeholder="Enter new password"
-                    required
-                    minLength={6}
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1">
-                    Confirm Password
-                  </label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full"
-                    placeholder="Confirm new password"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Button
-                    type="submit"
-                    className="hilite-btn-primary w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "Updating Password..." : "Update Password"}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          ) : (
-            <div className="text-center space-y-4">
-              <p>
-                This password reset link is invalid or has expired.
-              </p>
-              <p>
-                Please request a new password reset link.
-              </p>
-              <Button
-                asChild
-                className="hilite-btn-primary mt-4"
-              >
-                <Link to="/forgot-password">
-                  Request New Reset Link
-                </Link>
-              </Button>
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <GraduationCap className="h-8 w-8 text-hilite-dark-red" />
+              <span className="text-2xl font-bold text-hilite-dark-red">Hi-lite</span>
             </div>
-          )}
-
-          <div className="mt-6 text-center text-sm">
-            <Link to="/login" className="text-hilite-dark-red hover:underline">
-              Back to login
-            </Link>
-          </div>
-        </div>
+            <CardTitle>Reset your password</CardTitle>
+            <CardDescription>
+              Enter your new password below
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="password">New Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+              
+              <Button
+                type="submit"
+                className="w-full bg-hilite-dark-red hover:bg-hilite-dark-red/90"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Updating..." : "Update password"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

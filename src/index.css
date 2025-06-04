@@ -1,120 +1,77 @@
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 240 5% 96%;
-    --foreground: 240 10% 3.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-
-    --primary: 0 59% 27%; /* Dark red */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-
-    --accent: 195 53% 79%; /* Light blue */
-    --accent-foreground: 240 5.9% 10%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 0 59% 27%; /* Dark red */
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 0 59% 27%; /* Dark red */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-
-    --accent: 195 53% 79%; /* Light blue */
-    --accent-foreground: 0 0% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+:root {
+  --hilite-purple: #6B46C1;
+  --hilite-dark-red: #DC2626;
+  --hilite-light-blue: #3B82F6;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-
   body {
-    @apply bg-background text-foreground font-mono;
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
   }
 }
 
 @layer components {
   .hilite-card {
-    @apply bg-card rounded-lg border shadow-sm p-4 transition-all hover:shadow-md;
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
   }
-
-  .hilite-input {
-    @apply bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-hilite-dark-red;
-  }
-
+  
   .hilite-btn-primary {
-    @apply bg-hilite-dark-red text-white hover:bg-opacity-90 rounded-md px-4 py-2 font-medium transition-colors;
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition-colors;
   }
-
+  
   .hilite-btn-secondary {
-    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-4 py-2 font-medium transition-colors;
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-md transition-colors;
   }
+  
+  .hilite-input {
+    @apply border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent;
+  }
+}
 
-  .hilite-link {
-    @apply text-hilite-dark-red hover:underline cursor-pointer font-medium;
+@layer utilities {
+  .text-hilite-purple {
+    color: var(--hilite-purple);
+  }
+  
+  .text-hilite-dark-red {
+    color: var(--hilite-dark-red);
+  }
+  
+  .text-hilite-light-blue {
+    color: var(--hilite-light-blue);
+  }
+  
+  .bg-hilite-purple {
+    background-color: var(--hilite-purple);
+  }
+  
+  .bg-hilite-dark-red {
+    background-color: var(--hilite-dark-red);
+  }
+  
+  .bg-hilite-light-blue {
+    background-color: var(--hilite-light-blue);
+  }
+  
+  .border-hilite-purple {
+    border-color: var(--hilite-purple);
+  }
+  
+  .border-hilite-dark-red {
+    border-color: var(--hilite-dark-red);
+  }
+  
+  .border-hilite-light-blue {
+    border-color: var(--hilite-light-blue);
   }
 }
