@@ -1,25 +1,48 @@
 
-import { useState } from "react";
-import { Code, ExternalLink, Edit, Plus, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Edit } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ProjectsProps {
   isCurrentUser?: boolean;
+  profileData?: any;
 }
 
-export default function ProjectsSection({ isCurrentUser = false }: ProjectsProps) {
-  const { user, profile } = useAuth();
-  const [projectsText, setProjectsText] = useState(profile?.projects || "");
+export default function ProjectsSection({ isCurrentUser = false, profileData }: ProjectsProps) {
+  const { user, refreshProfile } = useAuth();
+  const [projectsText, setProjectsText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Basic project display from text field in profile
-  // Note: In a real application, you might want to create a separate projects table
-  // similar to education and experience for more structured data
-  
+  // Update local state when profileData changes
+  useEffect(() => {
+    if (profileData?.projects !== undefined) {
+      setProjectsText(profileData.projects || "");
+    }
+  }, [profileData]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ projects: projectsText })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      toast.success("Projects updated successfully");
+      await refreshProfile();
+      setIsEditing(false);
+    } catch (error: any) {
+      toast.error(`Error updating projects: ${error.message}`);
+    }
+  };
+
   return (
     <div className="hilite-card mb-4">
       <div className="flex justify-between items-center mb-4">
@@ -36,41 +59,23 @@ export default function ProjectsSection({ isCurrentUser = false }: ProjectsProps
 
       {isEditing ? (
         <div className="space-y-4">
-          <Input 
+          <Textarea 
             value={projectsText} 
             onChange={(e) => setProjectsText(e.target.value)} 
             placeholder="Describe your projects"
-            className="w-full"
+            className="min-h-[150px]"
           />
           <div className="flex justify-end space-x-2">
             <Button 
               variant="outline"
               onClick={() => {
-                setProjectsText(profile?.projects || "");
+                setProjectsText(profileData?.projects || "");
                 setIsEditing(false);
               }}
             >
               Cancel
             </Button>
-            <Button
-              onClick={async () => {
-                if (!user) return;
-                
-                try {
-                  const { error } = await supabase
-                    .from('profiles')
-                    .update({ projects: projectsText })
-                    .eq('id', user.id);
-                    
-                  if (error) throw error;
-                  
-                  toast.success("Projects updated successfully");
-                  setIsEditing(false);
-                } catch (error: any) {
-                  toast.error(`Error updating projects: ${error.message}`);
-                }
-              }}
-            >
+            <Button onClick={handleSave}>
               Save
             </Button>
           </div>

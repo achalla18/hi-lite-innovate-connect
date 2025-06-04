@@ -28,7 +28,7 @@ import EditProfileForm from "@/components/profile/EditProfileForm";
 export default function Profile() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { user, profile: currentUserProfile } = useAuth();
+  const { user } = useAuth();
   const [profileData, setProfileData] = useState<any>(null);
   const [isCurrentUser, setIsCurrentUser] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -129,7 +129,7 @@ export default function Profile() {
             <ProfileHeader 
               isCurrentUser={isCurrentUser} 
               connectionsData={connectionsData}
-              profile={viewedProfile}
+              profile={profileData}
               onEditProfile={() => setIsEditProfileOpen(true)}
             />
             
@@ -140,10 +140,13 @@ export default function Profile() {
             
             <AboutSection 
               isCurrentUser={isCurrentUser} 
-              initialBio={viewedProfile?.about || ""}
+              profileData={profileData}
             />
             
-            <FeaturedSection isCurrentUser={isCurrentUser} />
+            <FeaturedSection 
+              isCurrentUser={isCurrentUser} 
+              profileData={profileData}
+            />
             
             <ExperienceSection 
               userId={userId || ""} 
@@ -155,7 +158,10 @@ export default function Profile() {
               isCurrentUser={isCurrentUser} 
             />
             
-            <ProjectsSection isCurrentUser={isCurrentUser} />
+            <ProjectsSection 
+              isCurrentUser={isCurrentUser} 
+              profileData={profileData}
+            />
             
             {/* User's Posts */}
             <UserPosts userId={userId || ""} profileData={profileData} />

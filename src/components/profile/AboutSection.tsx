@@ -7,18 +7,26 @@ import { toast } from "sonner";
 
 interface AboutSectionProps {
   isCurrentUser?: boolean;
-  initialBio?: string;
+  profileData?: any;
 }
 
 export default function AboutSection({ 
   isCurrentUser = false, 
-  initialBio = "" 
+  profileData
 }: AboutSectionProps) {
   const { user, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [bio, setBio] = useState(initialBio);
-  const [editedBio, setEditedBio] = useState(initialBio);
+  const [bio, setBio] = useState(profileData?.about || "");
+  const [editedBio, setEditedBio] = useState(profileData?.about || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Update local state when profileData changes
+  useState(() => {
+    if (profileData?.about !== undefined) {
+      setBio(profileData.about || "");
+      setEditedBio(profileData.about || "");
+    }
+  });
 
   const handleSave = async () => {
     if (!user) return;

@@ -10,14 +10,10 @@ interface UserClubsProps {
 }
 
 export default function UserClubs({ userId, isCurrentUser = false }: UserClubsProps) {
-  // Fetch user's clubs
-  const { data: userClubs, isLoading } = useQuery({
-    queryKey: ['userClubs', userId],
+  // Fetch clubs data
+  const { data: clubsData, isLoading } = useQuery({
+    queryKey: ['clubs'],
     queryFn: async () => {
-      if (!userId) return [];
-      
-      // This is a placeholder query - in a real app, you would have a table
-      // linking users to clubs they're members of
       const { data, error } = await supabase
         .from('clubs')
         .select('*')
@@ -29,8 +25,7 @@ export default function UserClubs({ userId, isCurrentUser = false }: UserClubsPr
       }
       
       return data || [];
-    },
-    enabled: !!userId
+    }
   });
 
   return (
@@ -53,8 +48,8 @@ export default function UserClubs({ userId, isCurrentUser = false }: UserClubsPr
             <div className="h-12 bg-muted animate-pulse rounded-md"></div>
             <div className="h-12 bg-muted animate-pulse rounded-md"></div>
           </div>
-        ) : userClubs && userClubs.length > 0 ? (
-          userClubs.map(club => (
+        ) : clubsData && clubsData.length > 0 ? (
+          clubsData.map(club => (
             <Link 
               key={club.id}
               to={`/club/${club.id}`} 
@@ -80,7 +75,7 @@ export default function UserClubs({ userId, isCurrentUser = false }: UserClubsPr
           ))
         ) : (
           <div className="p-6 text-center">
-            <p className="text-muted-foreground mb-3">Not a member of any clubs yet</p>
+            <p className="text-muted-foreground mb-3">No clubs available yet</p>
             <Link to="/clubs" className="hilite-btn-primary inline-flex items-center">
               <Plus className="h-4 w-4 mr-1" />
               Browse Clubs

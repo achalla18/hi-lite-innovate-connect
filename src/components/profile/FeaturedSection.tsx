@@ -1,24 +1,47 @@
 
-import { useState } from "react";
-import { Edit, ExternalLink, Globe, Link, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Edit } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 interface FeaturedProps {
   isCurrentUser?: boolean;
+  profileData?: any;
 }
 
-export default function FeaturedSection({ isCurrentUser = false }: FeaturedProps) {
-  const { user, profile } = useAuth();
+export default function FeaturedSection({ isCurrentUser = false, profileData }: FeaturedProps) {
+  const { user, refreshProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [featuredContent, setFeaturedContent] = useState(profile?.awards || "");
+  const [featuredContent, setFeaturedContent] = useState("");
 
-  // Using awards field for featured content
-  // In a full implementation, you'd want a dedicated table for featured content
+  // Update local state when profileData changes
+  useEffect(() => {
+    if (profileData?.awards !== undefined) {
+      setFeaturedContent(profileData.awards || "");
+    }
+  }, [profileData]);
+
+  const handleSave = async () => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ awards: featuredContent })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      toast.success("Featured content updated successfully");
+      await refreshProfile();
+      setIsEditing(false);
+    } catch (error: any) {
+      toast.error(`Error updating featured content: ${error.message}`);
+    }
+  };
 
   return (
     <div className="hilite-card mb-4">
@@ -46,31 +69,13 @@ export default function FeaturedSection({ isCurrentUser = false }: FeaturedProps
             <Button
               variant="outline"
               onClick={() => {
-                setFeaturedContent(profile?.awards || "");
+                setFeaturedContent(profileData?.awards || "");
                 setIsEditing(false);
               }}
             >
               Cancel
             </Button>
-            <Button
-              onClick={async () => {
-                if (!user) return;
-                
-                try {
-                  const { error } = await supabase
-                    .from('profiles')
-                    .update({ awards: featuredContent })
-                    .eq('id', user.id);
-                    
-                  if (error) throw error;
-                  
-                  toast.success("Featured content updated successfully");
-                  setIsEditing(false);
-                } catch (error: any) {
-                  toast.error(`Error updating featured content: ${error.message}`);
-                }
-              }}
-            >
+            <Button onClick={handleSave}>
               Save
             </Button>
           </div>
