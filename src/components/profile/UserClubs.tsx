@@ -10,9 +10,9 @@ interface UserClubsProps {
 }
 
 export default function UserClubs({ userId, isCurrentUser = false }: UserClubsProps) {
-  // Fetch clubs data
+  // Fetch user's clubs - for now we'll just fetch all clubs since we don't have membership table yet
   const { data: clubsData, isLoading } = useQuery({
-    queryKey: ['clubs'],
+    queryKey: ['user-clubs', userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clubs')
@@ -38,7 +38,7 @@ export default function UserClubs({ userId, isCurrentUser = false }: UserClubsPr
         
         <Link to="/clubs" className="text-hilite-purple text-sm hover:underline">
           <Plus className="h-4 w-4 inline mr-1" />
-          {isCurrentUser ? "Join Clubs" : "View Clubs"}
+          {isCurrentUser ? "Join Clubs" : "View All"}
         </Link>
       </div>
       
@@ -52,7 +52,7 @@ export default function UserClubs({ userId, isCurrentUser = false }: UserClubsPr
           clubsData.map(club => (
             <Link 
               key={club.id}
-              to={`/club/${club.id}`} 
+              to={`/clubs/${club.id}`} 
               className="flex items-center p-4 hover:bg-accent border-b border-border last:border-b-0"
             >
               <div className="h-10 w-10 rounded-lg bg-hilite-gray overflow-hidden mr-3">
@@ -75,11 +75,15 @@ export default function UserClubs({ userId, isCurrentUser = false }: UserClubsPr
           ))
         ) : (
           <div className="p-6 text-center">
-            <p className="text-muted-foreground mb-3">No clubs available yet</p>
-            <Link to="/clubs" className="hilite-btn-primary inline-flex items-center">
-              <Plus className="h-4 w-4 mr-1" />
-              Browse Clubs
-            </Link>
+            <p className="text-muted-foreground mb-3">
+              {isCurrentUser ? "You haven't joined any clubs yet" : "No clubs to display"}
+            </p>
+            {isCurrentUser && (
+              <Link to="/clubs" className="hilite-btn-primary inline-flex items-center">
+                <Plus className="h-4 w-4 mr-1" />
+                Browse Clubs
+              </Link>
+            )}
           </div>
         )}
       </div>

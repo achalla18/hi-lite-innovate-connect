@@ -1,121 +1,40 @@
 
-import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
+import { Link } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GraduationCap } from "lucide-react";
 
 export default function Register() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const { user, signUp, isLoading } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const navigate = useNavigate();
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      setIsSubmitting(true);
-      
-      // We'll simplify the check to avoid deep instantiation errors
-      await signUp(email, password, name);
-      toast.success("Account created successfully!");
-      
-      // Redirect to profile setup page after successful registration
-      navigate("/profile-setup");
-    } catch (error: any) {
-      // Check if error is about duplicate email
-      if (error.message?.toLowerCase().includes('email') && error.message?.toLowerCase().includes('already')) {
-        toast.error("Email already in use. Please use a different email address.");
-      } else {
-        toast.error(`Registration failed: ${error.message}`);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  if (user) {
-    return <Navigate to="/profile-setup" replace />;
-  }
-  
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="hilite-card">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-hilite-dark-red">Hi-lite</h1>
-            <p className="text-muted-foreground">Create a new account</p>
-          </div>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium mb-1">
-                  Full Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="hilite-input w-full"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-1">
-                  School Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="hilite-input w-full"
-                  placeholder="you@school.com"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium mb-1">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="hilite-input w-full"
-                  required
-                  minLength={6}
-                />
-              </div>
-              
-              <div>
-                <button
-                  type="submit"
-                  className="hilite-btn-primary w-full"
-                  disabled={isLoading || isSubmitting}
-                >
-                  {isSubmitting ? "Creating account..." : "Create account"}
-                </button>
-              </div>
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <GraduationCap className="h-8 w-8 text-hilite-dark-red" />
+              <span className="text-2xl font-bold text-hilite-dark-red">Hi-lite</span>
             </div>
-          </form>
+            <CardTitle>Registration Closed</CardTitle>
+            <CardDescription>
+              Hi-lite is currently invite-only. Registration is temporarily unavailable.
+            </CardDescription>
+          </CardHeader>
           
-          <div className="mt-6 text-center text-sm">
-            <p>
-              Already have an account?{" "}
-              <Link to="/login" className="text-hilite-dark-red hover:underline">
-                Sign in
-              </Link>
+          <CardContent className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              We're working hard to bring you the best social platform for innovators. 
+              Stay tuned for updates on when registration will reopen.
             </p>
-          </div>
-        </div>
+            
+            <div className="space-y-2">
+              <Link to="/login" className="block text-hilite-dark-red hover:underline">
+                Already have an account? Sign in
+              </Link>
+              <Link to="/" className="block text-sm text-muted-foreground hover:underline">
+                Return to homepage
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

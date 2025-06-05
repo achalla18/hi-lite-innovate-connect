@@ -16,11 +16,9 @@ export function LandingHeader() {
           <Link to="/login">
             <Button variant="ghost">Sign in</Button>
           </Link>
-          <Link to="/register">
-            <Button className="bg-hilite-dark-red hover:bg-hilite-dark-red/90">
-              Get Started
-            </Button>
-          </Link>
+          <Button variant="outline" disabled>
+            Invite Only
+          </Button>
         </div>
       </div>
     </header>

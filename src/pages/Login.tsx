@@ -88,11 +88,8 @@ export default function Login() {
               <Link to="/forgot-password" className="text-sm text-hilite-dark-red hover:underline">
                 Forgot your password?
               </Link>
-              <div className="text-sm">
-                Don't have an account?{" "}
-                <Link to="/register" className="text-hilite-dark-red hover:underline">
-                  Sign up
-                </Link>
+              <div className="text-sm text-muted-foreground">
+                Hi-lite is currently invite-only
               </div>
             </div>
           </CardContent>
