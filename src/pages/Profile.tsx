@@ -17,6 +17,9 @@ import AdminPanel from "@/components/admin/AdminPanel";
 import UserPosts from "@/components/profile/UserPosts";
 import ConnectionButton from "@/components/profile/ConnectionButton";
 import ProfileStats from "@/components/profile/ProfileStats";
+import SkillsSection from "@/components/profile/SkillsSection";
+import RecommendationsSection from "@/components/profile/RecommendationsSection";
+import NotificationsPanel from "@/components/profile/NotificationsPanel";
 import { 
   Dialog,
   DialogContent,
@@ -158,6 +161,16 @@ export default function Profile() {
               isCurrentUser={isCurrentUser} 
             />
             
+            <SkillsSection
+              userId={userId || ""} 
+              isCurrentUser={isCurrentUser} 
+            />
+            
+            <RecommendationsSection
+              userId={userId || ""} 
+              isCurrentUser={isCurrentUser} 
+            />
+            
             <ProjectsSection 
               isCurrentUser={isCurrentUser} 
               profileData={profileData}
@@ -169,6 +182,11 @@ export default function Profile() {
           
           {/* Right Column */}
           <div className="space-y-4">
+            {/* Show notifications only for current user */}
+            {isCurrentUser && (
+              <NotificationsPanel />
+            )}
+
             {/* Show saved posts only for current user */}
             {isCurrentUser && (
               <SavedPosts />

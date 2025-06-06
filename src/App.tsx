@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +24,8 @@ import Settings from "./pages/Settings";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Companies from "./pages/Companies";
+import CompanyDetail from "./pages/CompanyDetail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,8 @@ function AppRoutes() {
       <Route path="/clubs" element={<ProtectedRoute><Clubs /></ProtectedRoute>} />
       <Route path="/club/:clubId" element={<ProtectedRoute><ClubDetail /></ProtectedRoute>} />
       <Route path="/clubs/:clubId" element={<ProtectedRoute><Navigate to="/club/:clubId" replace /></ProtectedRoute>} />
+      <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
+      <Route path="/company/:companyId" element={<ProtectedRoute><CompanyDetail /></ProtectedRoute>} />
       <Route path="/post/:postId" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/hashtag/:tag" element={<ProtectedRoute><Search /></ProtectedRoute>} />
       <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
