@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Plus, Upload, Lock, Unlock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -8,7 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 const clubSchema = z.object({
   name: z.string().min(3, { message: "Club name must be at least 3 characters" }).max(50),
@@ -23,7 +25,9 @@ export default function CreateClubButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [clubLogo, setClubLogo] = useState<string | null>(null);
-  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   
   const form = useForm<ClubFormValues>({
     resolver: zodResolver(clubSchema),
@@ -35,19 +39,60 @@ export default function CreateClubButton() {
     },
   });
 
-  const onSubmit = (data: ClubFormValues) => {
-    // In a real app, this would create the club in the database
-    console.log('Creating club:', { ...data, coverImage, clubLogo });
+  const onSubmit = async (data: ClubFormValues) => {
+    if (!user) {
+      toast.error("You must be logged in to create a club");
+      return;
+    }
     
-    toast({
-      title: "Club created",
-      description: `"${data.name}" has been created successfully.`,
-    });
+    setIsSubmitting(true);
     
-    setIsOpen(false);
-    form.reset();
-    setCoverImage(null);
-    setClubLogo(null);
+    try {
+      // Process tags
+      const tagsArray = data.tags ? data.tags.split(',').map(tag => tag.trim()) : null;
+      
+      // Insert club into database
+      const { data: clubData, error } = await supabase
+        .from('clubs')
+        .insert({
+          name: data.name,
+          description: data.description,
+          is_private: data.isPrivate,
+          tags: tagsArray,
+          image_url: clubLogo,
+          cover_image_url: coverImage,
+          owner_id: user.id
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Add creator as owner in club_members
+      if (clubData) {
+        const { error: memberError } = await supabase
+          .from('club_members')
+          .insert({
+            club_id: clubData.id,
+            user_id: user.id,
+            role: 'owner'
+          });
+          
+        if (memberError) throw memberError;
+      }
+      
+      toast.success(`"${data.name}" has been created successfully.`);
+      queryClient.invalidateQueries({ queryKey: ['clubs'] });
+      
+      setIsOpen(false);
+      form.reset();
+      setCoverImage(null);
+      setClubLogo(null);
+    } catch (error: any) {
+      toast.error(`Failed to create club: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Mock file upload - in a real app this would upload to storage
@@ -199,15 +244,16 @@ export default function CreateClubButton() {
                   type="button" 
                   className="hilite-btn-secondary"
                   onClick={() => setIsOpen(false)}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit" 
                   className="hilite-btn-primary"
-                  disabled={form.formState.isSubmitting}
+                  disabled={isSubmitting}
                 >
-                  {form.formState.isSubmitting ? "Creating..." : "Create Club"}
+                  {isSubmitting ? "Creating..." : "Create Club"}
                 </button>
               </DialogFooter>
             </form>

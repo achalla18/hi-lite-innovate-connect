@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import ClubCard from "@/components/clubs/ClubCard";
@@ -7,21 +6,34 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Folder, FolderOpen, FolderLock, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Clubs() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<"all" | "public" | "private">("all");
+  const [filter, setFilter] = useState<"all" | "public" | "private" | "my">("all");
   
-  // Fetch real clubs data from Supabase
-  const { data: clubs = [], isLoading } = useQuery({
-    queryKey: ['clubs', searchQuery, filter],
+  // Fetch clubs data from Supabase
+  const { data: clubsData = [], isLoading } = useQuery({
+    queryKey: ['clubs', searchQuery, filter, user?.id],
     queryFn: async () => {
       let query = supabase
         .from('clubs')
-        .select('*');
+        .select(`
+          *,
+          club_members!inner(user_id, role)
+        `);
       
       if (searchQuery) {
         query = query.or(`name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+      }
+      
+      if (filter === "public") {
+        query = query.eq('is_private', false);
+      } else if (filter === "private") {
+        query = query.eq('is_private', true);
+      } else if (filter === "my" && user) {
+        query = query.eq('club_members.user_id', user.id);
       }
       
       const { data, error } = await query;
@@ -32,14 +44,27 @@ export default function Clubs() {
       }
       
       return data || [];
-    }
+    },
+    enabled: true
   });
 
-  const filteredClubs = clubs.filter(club => {
-    if (filter === "all") return true;
-    // Since we don't have isPrivate field in the database yet, we'll treat all as public for now
-    return filter === "public";
-  });
+  // Format clubs data for display
+  const formattedClubs = clubsData.map(club => ({
+    id: club.id,
+    name: club.name,
+    description: club.description || "",
+    imageUrl: club.image_url,
+    coverImageUrl: club.cover_image_url,
+    isPrivate: club.is_private || false,
+    createdAt: club.created_at,
+    memberCount: club.member_count || 0,
+    owner: {
+      id: club.owner_id || "unknown",
+      name: "Club Owner",
+      avatarUrl: null
+    },
+    tags: club.tags || []
+  }));
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -97,6 +122,16 @@ export default function Clubs() {
                     <FolderLock className="h-5 w-5 text-muted-foreground" />
                     <span>Private Clubs</span>
                   </button>
+                  
+                  {user && (
+                    <button
+                      className={`w-full text-left p-3 flex items-center space-x-2 ${filter === "my" ? "bg-accent" : "hover:bg-accent"}`}
+                      onClick={() => setFilter("my")}
+                    >
+                      <Folder className="h-5 w-5 text-hilite-purple" />
+                      <span>My Clubs</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -113,25 +148,10 @@ export default function Clubs() {
                     </div>
                   ))}
                 </div>
-              ) : filteredClubs.length > 0 ? (
+              ) : formattedClubs.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {filteredClubs.map(club => (
-                    <ClubCard key={club.id} club={{
-                      id: club.id,
-                      name: club.name,
-                      description: club.description || "",
-                      imageUrl: club.image_url,
-                      coverImageUrl: club.image_url,
-                      isPrivate: false, // Default to public for now
-                      createdAt: club.created_at,
-                      memberCount: club.member_count || 0,
-                      owner: {
-                        id: "unknown",
-                        name: "Club Owner",
-                        avatarUrl: null
-                      },
-                      tags: []
-                    }} />
+                  {formattedClubs.map(club => (
+                    <ClubCard key={club.id} club={club} />
                   ))}
                 </div>
               ) : (

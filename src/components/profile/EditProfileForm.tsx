@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +20,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 
 const profileFormSchema = z.object({
   name: z.string().min(2, {
@@ -46,6 +46,7 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
   
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -60,6 +61,22 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
       awards: profile?.awards || "",
     },
   });
+
+  // Update form when profile changes
+  useEffect(() => {
+    if (profile) {
+      form.reset({
+        name: profile.name || "",
+        schoolName: profile.role || "",
+        location: profile.location || "",
+        about: profile.about || "",
+        avatarUrl: profile.avatar_url || "",
+        experience: profile.experience || "",
+        projects: profile.projects || "",
+        awards: profile.awards || "",
+      });
+    }
+  }, [profile, form]);
 
   const onSubmit = async (values: ProfileFormValues) => {
     if (!user) {
@@ -88,6 +105,9 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
       
       toast.success("Profile updated successfully!");
       await refreshProfile();
+      
+      // Invalidate profile queries
+      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
       
       if (isInitialSetup) {
         // Navigate to user's profile page

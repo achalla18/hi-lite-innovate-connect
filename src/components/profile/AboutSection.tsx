@@ -1,9 +1,9 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Edit } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AboutSectionProps {
   isCurrentUser?: boolean;
@@ -19,14 +19,15 @@ export default function AboutSection({
   const [bio, setBio] = useState(profileData?.about || "");
   const [editedBio, setEditedBio] = useState(profileData?.about || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
   // Update local state when profileData changes
-  useState(() => {
+  useEffect(() => {
     if (profileData?.about !== undefined) {
       setBio(profileData.about || "");
       setEditedBio(profileData.about || "");
     }
-  });
+  }, [profileData]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -44,6 +45,10 @@ export default function AboutSection({
       setBio(editedBio);
       setIsEditing(false);
       await refreshProfile();
+      
+      // Invalidate profile queries
+      queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+      
       toast.success("Bio updated successfully");
     } catch (error: any) {
       toast.error(`Failed to update bio: ${error.message}`);

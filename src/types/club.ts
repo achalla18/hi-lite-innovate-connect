@@ -1,4 +1,3 @@
-
 export interface ClubMember {
   id: string;
   userId: string;

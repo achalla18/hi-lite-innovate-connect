@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Image, Link as LinkIcon, FileText, BarChart4, X, Users, Share2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,7 +26,6 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
   const [attachments, setAttachments] = useState<string[]>([]);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
 
@@ -55,20 +54,12 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
     
     Array.from(files).forEach(async (file) => {
       if (!allowedTypes.includes(file.type)) {
-        toast({
-          title: "Unsupported file type",
-          description: "Only JPEG, PNG, and GIF images are supported",
-          variant: "destructive"
-        });
+        toast.error("Unsupported file type. Only JPEG, PNG, and GIF images are supported");
         return;
       }
       
       if (file.size > maxFileSize) {
-        toast({
-          title: "File too large",
-          description: "Maximum file size is 5MB",
-          variant: "destructive"
-        });
+        toast.error("File too large. Maximum file size is 5MB");
         return;
       }
       
@@ -97,7 +88,8 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
         user_id: user.id,
         content: content,
         images: attachments.length > 0 ? attachments : null,
-        repost_id: repostId || null
+        repost_id: repostId || null,
+        club_id: clubId || null
       };
       
       const { data, error } = await supabase
@@ -107,24 +99,20 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
         
       if (error) throw error;
       
-      toast({
-        title: clubId ? "Club post created" : repostId ? "Reposted successfully" : "Post created",
-        description: clubId 
-          ? "Your post has been published to the club." 
-          : "Your post has been published successfully.",
-      });
+      toast.success(clubId ? "Club post created" : repostId ? "Reposted successfully" : "Post created");
       
       // Reset form and invalidate posts query to refresh the list
       handleClose();
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['homePosts'] });
       queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+      
+      // Also invalidate club posts if this is a club post
+      if (clubId) {
+        queryClient.invalidateQueries({ queryKey: ['club-posts', clubId] });
+      }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast.error(`Error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

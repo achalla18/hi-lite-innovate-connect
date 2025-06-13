@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { MapPin, Briefcase, GraduationCap, Volume2, Edit } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
