@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { Club } from "@/types/club";
 import { Users, Lock } from "lucide-react";
@@ -9,7 +8,7 @@ interface ClubCardProps {
 
 export default function ClubCard({ club }: ClubCardProps) {
   return (
-    <Link to={`/clubs/${club.id}`} className="hilite-card overflow-hidden hover:shadow-md transition-shadow">
+    <Link to={`/club/${club.id}`} className="hilite-card overflow-hidden hover:shadow-md transition-shadow">
       <div className="h-24 bg-hilite-gray overflow-hidden">
         {club.coverImageUrl && (
           <img 

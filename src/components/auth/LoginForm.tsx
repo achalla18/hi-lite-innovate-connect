@@ -1,28 +1,31 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login success for now
-    // In a real app, this would connect to Supabase or another auth provider
-    setTimeout(() => {
+    try {
+      await signIn(email, password);
+      toast.success("Login successful! Welcome back to Hi-Lite!");
+      navigate("/");
+    } catch (error: any) {
+      toast.error(`Login failed: ${error.message}`);
+    } finally {
       setIsLoading(false);
-      toast({
-        title: "Login successful",
-        description: "Welcome back to Hi-Lite!",
-      });
-      // Redirect would happen here after real auth
-    }, 1000);
+    }
   };
 
   return (
@@ -36,25 +39,20 @@ export default function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium">
-            Email
-          </label>
-          <input
+          <Label htmlFor="email">Email</Label>
+          <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="hilite-input w-full"
             required
           />
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-medium">
-              Password
-            </label>
+            <Label htmlFor="password">Password</Label>
             <Link
               to="/forgot-password"
               className="text-sm text-hilite-purple hover:underline"
@@ -62,24 +60,23 @@ export default function LoginForm() {
               Forgot password?
             </Link>
           </div>
-          <input
+          <Input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="hilite-input w-full"
             required
           />
         </div>
 
-        <button
+        <Button
           type="submit"
-          className="hilite-btn-primary w-full"
+          className="w-full bg-hilite-dark-red hover:bg-hilite-dark-red/90"
           disabled={isLoading}
         >
-          {isLoading ? "Loading..." : "Login"}
-        </button>
+          {isLoading ? "Signing in..." : "Sign In"}
+        </Button>
       </form>
 
       <div className="text-center text-sm">

@@ -1,12 +1,109 @@
-
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/layout/Navbar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import CreatePostForm from "@/components/post/CreatePostForm";
+import PostCard from "@/components/post/PostCard";
+import NetworkSuggestions from "@/components/home/NetworkSuggestions";
+import TrendingTopics from "@/components/home/TrendingTopics";
+import UserStats from "@/components/home/UserStats";
 import { Button } from "@/components/ui/button";
-import { Users, MessageCircle, Lightbulb, TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Index() {
   const { user, profile } = useAuth();
+
+  // Format time ago helper function
+  const formatTimeAgo = (date: Date): string => {
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    let interval = seconds / 31536000; // years
+    if (interval > 1) return Math.floor(interval) + 'y ago';
+    
+    interval = seconds / 2592000; // months
+    if (interval > 1) return Math.floor(interval) + 'mo ago';
+    
+    interval = seconds / 86400; // days
+    if (interval > 1) return Math.floor(interval) + 'd ago';
+    
+    interval = seconds / 3600; // hours
+    if (interval > 1) return Math.floor(interval) + 'h ago';
+    
+    interval = seconds / 60; // minutes
+    if (interval > 1) return Math.floor(interval) + 'm ago';
+    
+    return 'just now';
+  };
+
+  // Fetch posts for the home feed
+  const { data: posts, isLoading: isLoadingPosts } = useQuery({
+    queryKey: ['homePosts', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      // Get all posts (in a real app, this would be filtered by connections)
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+        
+      if (postsError) throw postsError;
+      if (!postsData || postsData.length === 0) return [];
+      
+      // Get user profile data for each post
+      const userIds = [...new Set(postsData.map(post => post.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
+      
+      // Get post likes
+      const { data: postLikes } = await supabase
+        .from('post_likes')
+        .select('post_id, user_id');
+
+      // Get post comments counts
+      const { data: commentsData } = await supabase
+        .from('post_comments')
+        .select('post_id');
+      
+      // Map posts with author information and like/comment counts
+      return postsData.map(post => {
+        const authorProfile = profilesData?.find(profile => profile.id === post.user_id) || {
+          name: 'Anonymous',
+          role: '',
+          avatar_url: '/placeholder.svg'
+        };
+        
+        const isLiked = postLikes ? postLikes.some(like => 
+          like.post_id === post.id && like.user_id === user.id
+        ) : false;
+        
+        const likesCount = postLikes ? postLikes.filter(like => like.post_id === post.id).length : 0;
+        const commentsCount = commentsData ? commentsData.filter(comment => comment.post_id === post.id).length : 0;
+        
+        return {
+          id: post.id,
+          author: {
+            id: post.user_id,
+            name: authorProfile.name || 'Anonymous',
+            role: authorProfile.role || '',
+            avatarUrl: authorProfile.avatar_url || '/placeholder.svg'
+          },
+          content: post.content,
+          images: post.images || [],
+          likes: likesCount,
+          comments: commentsCount,
+          timeAgo: formatTimeAgo(new Date(post.created_at)),
+          isLiked
+        };
+      });
+    },
+    enabled: !!user
+  });
 
   if (!user) {
     return (
@@ -26,109 +123,79 @@ export default function Index() {
       <Navbar />
       
       <main className="flex-1 container py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Left Sidebar */}
+          <div className="lg:col-span-1 space-y-4">
+            <UserStats />
+            <TrendingTopics />
+          </div>
+
           {/* Main Feed */}
           <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Welcome back, {profile?.name || user.email}!</CardTitle>
-              </CardHeader>
-              <CardContent>
+            {/* Welcome message for new users */}
+            {!profile?.name && (
+              <div className="hilite-card text-center">
+                <h2 className="text-xl font-bold mb-2">Welcome to Hi-Lite!</h2>
                 <p className="text-muted-foreground mb-4">
-                  Stay connected with the innovation community. Share your ideas, 
-                  collaborate on projects, and discover breakthrough innovations.
+                  Complete your profile to start connecting with other high school innovators.
                 </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center p-4 border rounded-lg">
-                    <Users className="h-8 w-8 mx-auto mb-2 text-hilite-dark-red" />
-                    <p className="text-sm font-medium">Network</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <MessageCircle className="h-8 w-8 mx-auto mb-2 text-hilite-dark-red" />
-                    <p className="text-sm font-medium">Messages</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <Lightbulb className="h-8 w-8 mx-auto mb-2 text-hilite-dark-red" />
-                    <p className="text-sm font-medium">Ideas</p>
-                  </div>
-                  <div className="text-center p-4 border rounded-lg">
-                    <TrendingUp className="h-8 w-8 mx-auto mb-2 text-hilite-dark-red" />
-                    <p className="text-sm font-medium">Trending</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                <Link to="/profile-setup">
+                  <Button className="bg-hilite-dark-red hover:bg-hilite-dark-red/90">
+                    Complete Profile
+                  </Button>
+                </Link>
+              </div>
+            )}
 
-            {/* Create Post Card */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex space-x-4">
-                  <div className="h-10 w-10 rounded-full bg-hilite-light-blue flex items-center justify-center">
-                    <span className="text-sm font-medium text-hilite-dark-red">
-                      {profile?.name?.charAt(0) || user.email?.charAt(0)}
-                    </span>
+            {/* Create Post */}
+            <CreatePostForm />
+
+            {/* Posts Feed */}
+            {isLoadingPosts ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="hilite-card p-4 animate-pulse">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="h-10 w-10 bg-hilite-gray rounded-full"></div>
+                      <div className="space-y-2 flex-1">
+                        <div className="h-4 bg-hilite-gray rounded w-1/3"></div>
+                        <div className="h-3 bg-hilite-gray rounded w-1/4"></div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-4 bg-hilite-gray rounded"></div>
+                      <div className="h-4 bg-hilite-gray rounded"></div>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <Button 
-                      variant="outline" 
-                      className="w-full justify-start text-muted-foreground"
-                    >
-                      What's on your mind? Share your innovation...
+                ))}
+              </div>
+            ) : posts && posts.length > 0 ? (
+              posts.map(post => (
+                <PostCard key={post.id} post={post} />
+              ))
+            ) : (
+              <div className="hilite-card text-center py-8">
+                <h3 className="text-lg font-bold mb-2">No posts yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start connecting with other students and share your ideas to see posts in your feed.
+                </p>
+                <div className="space-x-2">
+                  <Link to="/discover">
+                    <Button variant="outline">Discover Posts</Button>
+                  </Link>
+                  <Link to="/network">
+                    <Button className="bg-hilite-dark-red hover:bg-hilite-dark-red/90">
+                      Find Connections
                     </Button>
-                  </div>
+                  </Link>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Sample Posts */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-8">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-medium mb-2">No posts yet</h3>
-                  <p className="text-muted-foreground">
-                    Start connecting with innovators and share your ideas to see posts in your feed.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            )}
           </div>
 
           {/* Right Sidebar */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  <Users className="h-4 w-4 mr-2" />
-                  Find Connections
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Start Conversation
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Lightbulb className="h-4 w-4 mr-2" />
-                  Join Clubs
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Complete Your Profile</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Add more information to help others find and connect with you.
-                </p>
-                <Button className="w-full">
-                  Edit Profile
-                </Button>
-              </CardContent>
-            </Card>
+          <div className="lg:col-span-1 space-y-4">
+            <NetworkSuggestions />
           </div>
         </div>
       </main>

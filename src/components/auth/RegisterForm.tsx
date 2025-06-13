@@ -1,29 +1,32 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const { signUp } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate registration success for now
-    // In a real app, this would connect to Supabase or another auth provider
-    setTimeout(() => {
+    try {
+      await signUp(email, password, name);
+      toast.success("Registration successful! Welcome to Hi-Lite!");
+      navigate("/profile-setup");
+    } catch (error: any) {
+      toast.error(`Registration failed: ${error.message}`);
+    } finally {
       setIsLoading(false);
-      toast({
-        title: "Registration successful",
-        description: "Welcome to Hi-Lite! Check your email to confirm your account.",
-      });
-      // Redirect would happen here after real auth
-    }, 1000);
+    }
   };
 
   return (
@@ -37,46 +40,37 @@ export default function RegisterForm() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="name" className="text-sm font-medium">
-            Full Name
-          </label>
-          <input
+          <Label htmlFor="name">Full Name</Label>
+          <Input
             id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your Name"
-            className="hilite-input w-full"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium">
-            Email
-          </label>
-          <input
+          <Label htmlFor="email">Email</Label>
+          <Input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="hilite-input w-full"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="text-sm font-medium">
-            Password
-          </label>
-          <input
+          <Label htmlFor="password">Password</Label>
+          <Input
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="hilite-input w-full"
             required
           />
           <p className="text-xs text-muted-foreground">
@@ -84,13 +78,13 @@ export default function RegisterForm() {
           </p>
         </div>
 
-        <button
+        <Button
           type="submit"
-          className="hilite-btn-primary w-full"
+          className="w-full bg-hilite-dark-red hover:bg-hilite-dark-red/90"
           disabled={isLoading}
         >
           {isLoading ? "Creating account..." : "Create account"}
-        </button>
+        </Button>
 
         <p className="text-xs text-center text-muted-foreground">
           By creating an account, you agree to our{" "}

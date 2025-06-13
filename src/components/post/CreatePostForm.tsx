@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Image, Link as LinkIcon, FileText, BarChart4, X, Users, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -6,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ReactMarkdown from "react-markdown";
 
 interface CreatePostFormProps {
@@ -27,7 +27,7 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
 
   const handleFocus = () => {
@@ -117,6 +117,8 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
       // Reset form and invalidate posts query to refresh the list
       handleClose();
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['homePosts'] });
+      queryClient.invalidateQueries({ queryKey: ['userPosts'] });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -136,13 +138,12 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
     <div className="hilite-card mb-4">
       <form onSubmit={handleSubmit}>
         <div className="flex space-x-3 p-4">
-          <div className="h-10 w-10 rounded-full bg-hilite-gray overflow-hidden">
-            <img
-              src={user?.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=200&fit=crop"}
-              alt="Profile"
-              className="h-full w-full object-cover"
-            />
-          </div>
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={profile?.avatar_url || ""} alt={profile?.name || "Profile"} />
+            <AvatarFallback>
+              {profile?.name?.charAt(0) || user?.email?.charAt(0) || "U"}
+            </AvatarFallback>
+          </Avatar>
           
           <div className="flex-1">
             {repostId && repostContent && repostUser && (
@@ -155,7 +156,7 @@ export default function CreatePostForm({ clubId, repostId, repostContent, repost
           
             {!isPreviewMode ? (
               <textarea
-                placeholder={clubId ? "Share something with the club..." : "What would you like to share?"}
+                placeholder={clubId ? "Share something with the club..." : "What's on your mind? Share your innovation..."}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 onFocus={handleFocus}
