@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
@@ -24,6 +23,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
   isLoading: boolean;
+  isEmailVerified: boolean;
+  hasTwoFactorEnabled: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,6 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [hasTwoFactorEnabled, setHasTwoFactorEnabled] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -49,7 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(currentSession?.user || null);
           
           if (currentSession?.user) {
+            setIsEmailVerified(!!currentSession.user.email_confirmed_at);
             await fetchProfile(currentSession.user.id);
+            await checkTwoFactorStatus(currentSession.user.id);
           }
         }
         
@@ -61,9 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(updatedSession?.user || null);
               
               if (updatedSession?.user) {
+                setIsEmailVerified(!!updatedSession.user.email_confirmed_at);
                 await fetchProfile(updatedSession.user.id);
+                await checkTwoFactorStatus(updatedSession.user.id);
               } else {
                 setProfile(null);
+                setIsEmailVerified(false);
+                setHasTwoFactorEnabled(false);
               }
             }
           }
@@ -103,9 +112,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (data) {
         setProfile(data as Profile);
+      } else {
+        // Create a new profile if one doesn't exist
+        await createProfile(userId);
       }
     } catch (error) {
       console.error('Profile fetch error:', error);
+    }
+  };
+  
+  const createProfile = async (userId: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData?.user;
+      
+      if (!user) return;
+      
+      // Get name from user metadata if available
+      const name = user.user_metadata?.name || user.user_metadata?.full_name || null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          name: name,
+          avatar_url: user.user_metadata?.avatar_url || null
+        })
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Error creating profile:', error);
+        return;
+      }
+      
+      setProfile(data as Profile);
+    } catch (error) {
+      console.error('Profile creation error:', error);
+    }
+  };
+  
+  const checkTwoFactorStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('two_factor_enabled')
+        .eq('user_id', userId)
+        .single();
+        
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking 2FA status:', error);
+        return;
+      }
+      
+      setHasTwoFactorEnabled(data?.two_factor_enabled || false);
+    } catch (error) {
+      console.error('2FA status check error:', error);
     }
   };
   
@@ -127,9 +189,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     setUser(data.user);
     setSession(data.session);
+    setIsEmailVerified(!!data.user?.email_confirmed_at);
     
     if (data.user) {
       await fetchProfile(data.user.id);
+      await checkTwoFactorStatus(data.user.id);
     }
   };
   
@@ -141,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         data: {
           name: name,
         },
-        emailRedirectTo: `${window.location.origin}/`
+        emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     });
     
@@ -152,6 +216,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // The profile will be created automatically via a database trigger
     setUser(data.user);
     setSession(data.session);
+    setIsEmailVerified(!!data.user?.email_confirmed_at);
+    
+    if (data.user) {
+      await createProfile(data.user.id);
+    }
   };
   
   const signOut = async () => {
@@ -159,6 +228,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setSession(null);
     setProfile(null);
+    setIsEmailVerified(false);
+    setHasTwoFactorEnabled(false);
   };
   
   return (
@@ -170,7 +241,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signUp,
       signOut, 
       refreshProfile, 
-      isLoading 
+      isLoading,
+      isEmailVerified,
+      hasTwoFactorEnabled
     }}>
       {children}
     </AuthContext.Provider>

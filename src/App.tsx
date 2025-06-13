@@ -26,6 +26,9 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Companies from "./pages/Companies";
 import CompanyDetail from "./pages/CompanyDetail";
+import AuthCallback from "./pages/AuthCallback";
+import AccountSecurity from "./pages/AccountSecurity";
+import EmailVerificationBanner from "./components/auth/EmailVerificationBanner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,7 +40,7 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isEmailVerified } = useAuth();
 
   if (isLoading) {
     return (
@@ -48,42 +51,48 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={user ? <Navigate to="/" replace /> : <ForgotPassword />} />
-      <Route path="/reset-password" element={user ? <Navigate to="/" replace /> : <ResetPassword />} />
+    <>
+      {user && !isEmailVerified && <EmailVerificationBanner />}
       
-      {/* Landing page for non-authenticated users */}
-      <Route path="/landing" element={!user ? <Landing /> : <Navigate to="/" replace />} />
-      
-      {/* Protected routes */}
-      <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/user/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
-      <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
-      <Route path="/clubs" element={<ProtectedRoute><Clubs /></ProtectedRoute>} />
-      <Route path="/club/:clubId" element={<ProtectedRoute><ClubDetail /></ProtectedRoute>} />
-      <Route path="/clubs/:clubId" element={<ProtectedRoute><Navigate to="/club/:clubId" replace /></ProtectedRoute>} />
-      <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
-      <Route path="/company/:companyId" element={<ProtectedRoute><CompanyDetail /></ProtectedRoute>} />
-      <Route path="/post/:postId" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      <Route path="/hashtag/:tag" element={<ProtectedRoute><Search /></ProtectedRoute>} />
-      <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
-      <Route path="/network" element={<ProtectedRoute><Network /></ProtectedRoute>} />
-      <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
-      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-      
-      {/* Root route - show landing for non-authenticated, home for authenticated */}
-      <Route path="/" element={user ? <ProtectedRoute><Index /></ProtectedRoute> : <Landing />} />
-      
-      {/* Catch-all route */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
+        <Route path="/forgot-password" element={user ? <Navigate to="/" replace /> : <ForgotPassword />} />
+        <Route path="/reset-password" element={user ? <Navigate to="/" replace /> : <ResetPassword />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        
+        {/* Landing page for non-authenticated users */}
+        <Route path="/landing" element={!user ? <Landing /> : <Navigate to="/" replace />} />
+        
+        {/* Protected routes */}
+        <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/user/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+        <Route path="/clubs" element={<ProtectedRoute><Clubs /></ProtectedRoute>} />
+        <Route path="/club/:clubId" element={<ProtectedRoute><ClubDetail /></ProtectedRoute>} />
+        <Route path="/clubs/:clubId" element={<ProtectedRoute><Navigate to="/club/:clubId" replace /></ProtectedRoute>} />
+        <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
+        <Route path="/company/:companyId" element={<ProtectedRoute><CompanyDetail /></ProtectedRoute>} />
+        <Route path="/post/:postId" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+        <Route path="/hashtag/:tag" element={<ProtectedRoute><Search /></ProtectedRoute>} />
+        <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
+        <Route path="/network" element={<ProtectedRoute><Network /></ProtectedRoute>} />
+        <Route path="/discover" element={<ProtectedRoute><Discover /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/account/security" element={<ProtectedRoute><AccountSecurity /></ProtectedRoute>} />
+        
+        {/* Root route - show landing for non-authenticated, home for authenticated */}
+        <Route path="/" element={user ? <ProtectedRoute><Index /></ProtectedRoute> : <Landing />} />
+        
+        {/* Catch-all route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 }
 
