@@ -1,26 +1,25 @@
-
 import { GraduationCap } from "lucide-react";
 
 export function LandingFooter() {
   return (
-    <footer className="border-t py-12 px-4">
-      <div className="container">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="flex items-center gap-2 mb-4 md:mb-0">
-            <GraduationCap className="h-6 w-6 text-hilite-dark-red" />
-            <span className="text-xl font-bold text-hilite-dark-red">Hi-lite</span>
+    <footer className="border-t bg-muted/20 px-4 py-10">
+      <div className="container flex flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
+        <div>
+          <div className="flex items-center justify-center gap-2 md:justify-start">
+            <GraduationCap className="h-5 w-5 text-hilite-dark-red" />
+            <span className="text-base font-bold">Hi-Lite</span>
           </div>
-          
-          <div className="flex gap-6 text-sm text-muted-foreground">
-            <a href="#" className="hover:text-hilite-dark-red">Privacy Policy</a>
-            <a href="#" className="hover:text-hilite-dark-red">Terms of Service</a>
-            <a href="#" className="hover:text-hilite-dark-red">Contact</a>
-          </div>
+          <p className="mt-1 text-sm text-muted-foreground">Professional social network for innovators and builders.</p>
         </div>
-        
-        <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-          © 2024 Hi-Lite. All rights reserved. Built for the innovators of tomorrow.
+
+        <div className="flex gap-5 text-sm text-muted-foreground">
+          <a href="#" className="transition-colors hover:text-foreground">Privacy</a>
+          <a href="#" className="transition-colors hover:text-foreground">Terms</a>
+          <a href="#" className="transition-colors hover:text-foreground">Support</a>
         </div>
+      </div>
+      <div className="container mt-6 border-t pt-5 text-center text-xs text-muted-foreground">
+        © 2026 Hi-Lite Innovate Connect. All rights reserved.
       </div>
     </footer>
   );

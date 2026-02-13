@@ -1,25 +1,31 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Mail } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 export function CTASection() {
   return (
-    <section className="py-20 px-4 bg-gradient-to-r from-hilite-dark-red to-hilite-light-blue">
-      <div className="container text-center">
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-          Join the Innovation Revolution
-        </h2>
-        <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-          Hi-lite is currently invite-only. Connect with like-minded innovators when we launch.
-        </p>
-        
-        <Link to="/login">
-          <Button size="lg" variant="secondary" className="text-hilite-dark-red">
-            Sign in if you have access
-            <Mail className="ml-2 h-4 w-4" />
-          </Button>
-        </Link>
+    <section className="px-4 py-20 md:py-24">
+      <div className="container">
+        <div className="rounded-2xl border bg-gradient-to-r from-hilite-dark-red to-hilite-light-blue p-8 text-center shadow-2xl shadow-hilite-dark-red/20 md:p-12">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">Ready to elevate your professional network?</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-white/90">
+            Join Hi-Lite to collaborate with high-potential peers, build your public portfolio, and discover new opportunities.
+          </p>
+
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <Link to="/register">
+              <Button size="lg" variant="secondary" className="w-full text-hilite-dark-red sm:w-auto">
+                Create your account
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <Link to="/login">
+              <Button size="lg" variant="outline" className="w-full border-white/60 bg-transparent text-white hover:bg-white/10 hover:text-white sm:w-auto">
+                I already have access
+              </Button>
+            </Link>
+          </div>
+        </div>
       </div>
     </section>
   );
