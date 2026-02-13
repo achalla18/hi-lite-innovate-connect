@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import SocialLoginButtons from "@/components/auth/SocialLoginButtons";
+import { getErrorMessage } from "@/lib/error";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -33,8 +34,8 @@ export default function Login() {
       
       // Navigate to the page the user was trying to access, or home
       navigate(from, { replace: true });
-    } catch (error: any) {
-      toast.error(`Sign in failed: ${error.message}`);
+    } catch (error: unknown) {
+      toast.error(`Sign in failed: ${getErrorMessage(error, "Unable to sign in")}`);
     } finally {
       setIsSubmitting(false);
     }

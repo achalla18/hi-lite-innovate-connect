@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { loginSchema } from "@/lib/authValidation";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
@@ -18,7 +19,13 @@ export default function LoginForm() {
     setIsLoading(true);
 
     try {
-      await signIn(email, password);
+      const parsed = loginSchema.safeParse({ email, password });
+      if (!parsed.success) {
+        toast.error(parsed.error.issues[0]?.message || "Please check your credentials");
+        return;
+      }
+
+      await signIn(parsed.data.email, parsed.data.password);
       toast.success("Login successful! Welcome back to Hi-Lite!");
       navigate("/");
     } catch (error: any) {
