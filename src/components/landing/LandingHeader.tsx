@@ -1,24 +1,42 @@
-
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { GraduationCap } from "lucide-react";
+import { BadgeCheck, GraduationCap } from "lucide-react";
+
+const navItems = [
+  { label: "Features", href: "#features" },
+  { label: "Community", href: "#community" },
+  { label: "Testimonials", href: "#testimonials" },
+];
 
 export function LandingHeader() {
   return (
-    <header className="border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-50">
+    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/90 backdrop-blur-lg">
       <div className="container flex h-16 items-center justify-between">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="rounded-lg bg-hilite-dark-red/10 p-1.5">
+            <GraduationCap className="h-5 w-5 text-hilite-dark-red" />
+          </div>
+          <span className="text-lg font-bold tracking-tight text-foreground">Hi-Lite</span>
+        </Link>
+
+        <nav className="hidden items-center gap-6 md:flex">
+          {navItems.map((item) => (
+            <a key={item.href} href={item.href} className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+              {item.label}
+            </a>
+          ))}
+        </nav>
+
         <div className="flex items-center gap-2">
-          <GraduationCap className="h-8 w-8 text-hilite-dark-red" />
-          <span className="text-2xl font-bold text-hilite-dark-red">Hi-lite</span>
-        </div>
-        
-        <div className="flex items-center gap-4">
           <Link to="/login">
-            <Button variant="ghost">Sign in</Button>
+            <Button variant="ghost" size="sm">Sign in</Button>
           </Link>
-          <Button variant="outline" disabled>
-            Invite Only
-          </Button>
+          <Link to="/register" className="hidden sm:block">
+            <Button size="sm" className="bg-hilite-dark-red hover:bg-hilite-dark-red/90">
+              <BadgeCheck className="mr-1.5 h-4 w-4" />
+              Get started
+            </Button>
+          </Link>
         </div>
       </div>
     </header>
