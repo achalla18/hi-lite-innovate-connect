@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { useAuth } from "@/context/AuthContext";
 import Landing from "./pages/Landing";
@@ -34,38 +34,47 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-    }
-  }
+      staleTime: 1000 * 60 * 5,
+    },
+  },
 });
+
+const FullScreenLoader = () => (
+  <div className="flex items-center justify-center h-screen" role="status" aria-live="polite" aria-label="Loading application">
+    <div className="animate-spin h-8 w-8 border-4 border-hilite-dark-red border-t-transparent rounded-full" />
+  </div>
+);
+
+const LegacyClubRouteRedirect = () => {
+  const { clubId } = useParams();
+
+  if (!clubId) {
+    return <Navigate to="/clubs" replace />;
+  }
+
+  return <Navigate to={`/club/${clubId}`} replace />;
+};
 
 function AppRoutes() {
   const { user, isLoading, isEmailVerified } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin h-8 w-8 border-4 border-hilite-dark-red border-t-transparent rounded-full"></div>
-      </div>
-    );
+    return <FullScreenLoader />;
   }
 
   return (
     <>
       {user && !isEmailVerified && <EmailVerificationBanner />}
-      
+
       <Routes>
-        {/* Public routes */}
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
         <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/" replace /> : <ForgotPassword />} />
         <Route path="/reset-password" element={user ? <Navigate to="/" replace /> : <ResetPassword />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        
-        {/* Landing page for non-authenticated users */}
+
         <Route path="/landing" element={!user ? <Landing /> : <Navigate to="/" replace />} />
-        
-        {/* Protected routes */}
+
         <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -74,7 +83,7 @@ function AppRoutes() {
         <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
         <Route path="/clubs" element={<ProtectedRoute><Clubs /></ProtectedRoute>} />
         <Route path="/club/:clubId" element={<ProtectedRoute><ClubDetail /></ProtectedRoute>} />
-        <Route path="/clubs/:clubId" element={<ProtectedRoute><Navigate to="/club/:clubId" replace /></ProtectedRoute>} />
+        <Route path="/clubs/:clubId" element={<ProtectedRoute><LegacyClubRouteRedirect /></ProtectedRoute>} />
         <Route path="/companies" element={<ProtectedRoute><Companies /></ProtectedRoute>} />
         <Route path="/company/:companyId" element={<ProtectedRoute><CompanyDetail /></ProtectedRoute>} />
         <Route path="/post/:postId" element={<ProtectedRoute><Index /></ProtectedRoute>} />
@@ -85,11 +94,9 @@ function AppRoutes() {
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/account/security" element={<ProtectedRoute><AccountSecurity /></ProtectedRoute>} />
-        
-        {/* Root route - show landing for non-authenticated, home for authenticated */}
+
         <Route path="/" element={user ? <ProtectedRoute><Index /></ProtectedRoute> : <Landing />} />
-        
-        {/* Catch-all route */}
+
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>
