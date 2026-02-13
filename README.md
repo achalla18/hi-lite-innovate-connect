@@ -32,6 +32,28 @@ A modern social and professional networking application built with React, TypeSc
 npm install
 ```
 
+### Environment variables
+
+Copy `.env.example` to `.env` and provide values:
+
+```sh
+cp .env.example .env
+```
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+### Google Sign-In (Supabase OAuth)
+
+This app uses `supabase.auth.signInWithOAuth({ provider: "google" })`.
+
+1. In Google Cloud, create a **Web application** OAuth client.
+2. In Supabase Dashboard → Authentication → Providers → Google, add the Google client ID and client secret.
+3. In Google OAuth credentials, add your Supabase callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`) and your app origin.
+4. Do **not** place Google client secrets in frontend code, `.env` files committed to git, or UI.
+
+> Security note: if a Google OAuth client secret has been exposed, rotate it immediately in Google Cloud and update Supabase provider settings.
+
 ### Development
 
 ```sh

@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import PasswordStrengthIndicator from "@/components/auth/PasswordStrengthIndicator";
 import SocialLoginButtons from "@/components/auth/SocialLoginButtons";
+import { getErrorMessage } from "@/lib/error";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -77,8 +78,8 @@ export default function Register() {
       
       toast.success("Registration successful! Please check your email to verify your account.");
       navigate("/profile-setup");
-    } catch (error: any) {
-      toast.error(`Registration failed: ${error.message}`);
+    } catch (error: unknown) {
+      toast.error(`Registration failed: ${getErrorMessage(error, "Unable to register")}`);
     } finally {
       setIsLoading(false);
     }
