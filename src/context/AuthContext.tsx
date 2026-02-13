@@ -12,6 +12,7 @@ interface Profile {
   experience: string | null;
   projects: string | null;
   awards: string | null;
+  profile_completed: boolean;
 }
 
 interface AuthContextType {
@@ -39,190 +40,158 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    
+
     async function getSession() {
       try {
         setIsLoading(true);
-        
-        // Get current session
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+
         if (mounted) {
           setSession(currentSession);
           setUser(currentSession?.user || null);
-          
+
           if (currentSession?.user) {
             setIsEmailVerified(!!currentSession.user.email_confirmed_at);
             await fetchProfile(currentSession.user.id);
             await checkTwoFactorStatus(currentSession.user.id);
           }
         }
-        
-        // Set up auth listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, updatedSession) => {
-            if (mounted) {
-              setSession(updatedSession);
-              setUser(updatedSession?.user || null);
-              
-              if (updatedSession?.user) {
-                setIsEmailVerified(!!updatedSession.user.email_confirmed_at);
-                await fetchProfile(updatedSession.user.id);
-                await checkTwoFactorStatus(updatedSession.user.id);
-              } else {
-                setProfile(null);
-                setIsEmailVerified(false);
-                setHasTwoFactorEnabled(false);
-              }
-            }
+
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (_event, updatedSession) => {
+          if (!mounted) return;
+
+          setSession(updatedSession);
+          setUser(updatedSession?.user || null);
+
+          if (updatedSession?.user) {
+            setIsEmailVerified(!!updatedSession.user.email_confirmed_at);
+            await fetchProfile(updatedSession.user.id);
+            await checkTwoFactorStatus(updatedSession.user.id);
+          } else {
+            setProfile(null);
+            setIsEmailVerified(false);
+            setHasTwoFactorEnabled(false);
           }
-        );
-        
+        });
+
         return () => {
           subscription.unsubscribe();
         };
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        console.error("Auth initialization error:", error);
       } finally {
         if (mounted) {
           setIsLoading(false);
         }
       }
     }
-    
+
     getSession();
-    
+
     return () => {
       mounted = false;
     };
   }, []);
-  
+
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, role, avatar_url, location, about, projects, awards, experience')
-        .eq('id', userId)
+        .from("profiles")
+        .select("id, name, role, avatar_url, location, about, projects, awards, experience, profile_completed")
+        .eq("id", userId)
         .single();
-        
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error fetching profile:', error);
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching profile:", error);
         return;
       }
-      
+
       if (data) {
         setProfile(data as Profile);
-      } else {
-        // Create a new profile if one doesn't exist
-        await createProfile(userId);
       }
     } catch (error) {
-      console.error('Profile fetch error:', error);
+      console.error("Profile fetch error:", error);
     }
   };
-  
-  const createProfile = async (userId: string) => {
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user;
-      
-      if (!user) return;
-      
-      // Get name from user metadata if available
-      const name = user.user_metadata?.name || user.user_metadata?.full_name || null;
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          name: name,
-          avatar_url: user.user_metadata?.avatar_url || null
-        })
-        .select()
-        .single();
-        
-      if (error) {
-        console.error('Error creating profile:', error);
-        return;
-      }
-      
-      setProfile(data as Profile);
-    } catch (error) {
-      console.error('Profile creation error:', error);
-    }
-  };
-  
+
   const checkTwoFactorStatus = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('user_settings')
-        .select('two_factor_enabled')
-        .eq('user_id', userId)
+        .from("user_settings")
+        .select("two_factor_enabled")
+        .eq("user_id", userId)
         .single();
-        
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking 2FA status:', error);
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error checking 2FA status:", error);
         return;
       }
-      
+
       setHasTwoFactorEnabled(data?.two_factor_enabled || false);
     } catch (error) {
-      console.error('2FA status check error:', error);
+      console.error("2FA status check error:", error);
     }
   };
-  
+
   const refreshProfile = async () => {
     if (user) {
       await fetchProfile(user.id);
     }
   };
-  
+
   const signIn = async (email: string, password: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
-    
+
     if (error) {
       throw error;
     }
-    
+
     setUser(data.user);
     setSession(data.session);
     setIsEmailVerified(!!data.user?.email_confirmed_at);
-    
+
     if (data.user) {
       await fetchProfile(data.user.id);
       await checkTwoFactorStatus(data.user.id);
     }
   };
-  
+
   const signUp = async (email: string, password: string, name: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         data: {
-          name: name,
+          name: cleanName,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`
-      }
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
-    
+
     if (error) {
       throw error;
     }
-    
-    // The profile will be created automatically via a database trigger
+
     setUser(data.user);
     setSession(data.session);
     setIsEmailVerified(!!data.user?.email_confirmed_at);
-    
+
     if (data.user) {
-      await createProfile(data.user.id);
+      await fetchProfile(data.user.id);
     }
   };
-  
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -231,20 +200,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsEmailVerified(false);
     setHasTwoFactorEnabled(false);
   };
-  
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      profile, 
-      session, 
-      signIn, 
-      signUp,
-      signOut, 
-      refreshProfile, 
-      isLoading,
-      isEmailVerified,
-      hasTwoFactorEnabled
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        session,
+        signIn,
+        signUp,
+        signOut,
+        refreshProfile,
+        isLoading,
+        isEmailVerified,
+        hasTwoFactorEnabled,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -5,11 +5,17 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import PasswordStrengthIndicator from "./PasswordStrengthIndicator";
+import { registerSchema } from "@/lib/authValidation";
 
 export default function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [isPasswordStrong, setIsPasswordStrong] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { signUp } = useAuth();
   const navigate = useNavigate();
@@ -19,8 +25,26 @@ export default function RegisterForm() {
     setIsLoading(true);
 
     try {
-      await signUp(email, password, name);
-      toast.success("Registration successful! Welcome to Hi-Lite!");
+      const parsed = registerSchema.safeParse({
+        name,
+        email,
+        password,
+        confirmPassword,
+        acceptedTerms,
+      });
+
+      if (!parsed.success) {
+        toast.error(parsed.error.issues[0]?.message || "Please check your inputs");
+        return;
+      }
+
+      if (!isPasswordStrong) {
+        toast.error("Please choose a stronger password before signing up");
+        return;
+      }
+
+      await signUp(parsed.data.email, parsed.data.password, parsed.data.name);
+      toast.success("Registration successful! Please verify your email to continue.");
       navigate("/profile-setup");
     } catch (error: any) {
       toast.error(`Registration failed: ${error.message}`);
@@ -73,9 +97,30 @@ export default function RegisterForm() {
             placeholder="••••••••"
             required
           />
-          <p className="text-xs text-muted-foreground">
-            Must be at least 8 characters long
-          </p>
+          <PasswordStrengthIndicator password={password} onStrengthChange={setIsPasswordStrong} />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirm-password">Confirm Password</Label>
+          <Input
+            id="confirm-password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+          />
+        </div>
+
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="accept-terms"
+            checked={acceptedTerms}
+            onCheckedChange={(checked) => setAcceptedTerms(Boolean(checked))}
+          />
+          <Label htmlFor="accept-terms" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+            By creating an account, you agree to our <Link to="/terms" className="underline underline-offset-2">Terms of Service</Link> and <Link to="/privacy" className="underline underline-offset-2">Privacy Policy</Link>.
+          </Label>
         </div>
 
         <Button
@@ -85,18 +130,6 @@ export default function RegisterForm() {
         >
           {isLoading ? "Creating account..." : "Create account"}
         </Button>
-
-        <p className="text-xs text-center text-muted-foreground">
-          By creating an account, you agree to our{" "}
-          <Link to="/terms" className="underline underline-offset-2">
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link to="/privacy" className="underline underline-offset-2">
-            Privacy Policy
-          </Link>
-          .
-        </p>
       </form>
 
       <div className="text-center text-sm">

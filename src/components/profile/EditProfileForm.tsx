@@ -26,13 +26,13 @@ const profileFormSchema = z.object({
   name: z.string().min(2, {
     message: "Name must be at least 2 characters."
   }),
-  schoolName: z.string().optional(),
-  location: z.string().optional(),
-  about: z.string().optional(),
-  avatarUrl: z.string().optional(),
-  experience: z.string().optional(),
-  projects: z.string().optional(),
-  awards: z.string().optional(),
+  schoolName: z.string().max(120).optional(),
+  location: z.string().max(120).optional(),
+  about: z.string().max(1000).optional(),
+  avatarUrl: z.string().url("Avatar URL must be a valid URL").optional().or(z.literal("")),
+  experience: z.string().max(2000).optional(),
+  projects: z.string().max(2000).optional(),
+  awards: z.string().max(2000).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -91,7 +91,8 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
         .from('profiles')
         .update({
           name: values.name,
-          role: values.schoolName, // Store schoolName in the role field
+          role: values.schoolName,
+          profile_completed: isInitialSetup ? true : undefined,
           location: values.location,
           avatar_url: values.avatarUrl,
           about: values.about,
@@ -185,9 +186,9 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
                 name="schoolName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>School Name</FormLabel>
+                    <FormLabel>School / Role</FormLabel>
                     <FormControl>
-                      <Input placeholder="Harvard University, Stanford, etc." {...field} />
+                      <Input placeholder="University, company, or role" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -229,9 +230,7 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
                 )}
               />
               
-              {/* These fields are only shown in edit mode, not in initial setup */}
-              {!isInitialSetup && (
-                <>
+              <>
                   <FormField
                     control={form.control}
                     name="experience"
@@ -286,7 +285,6 @@ export default function EditProfileForm({ isInitialSetup = false, onComplete }: 
                     )}
                   />
                 </>
-              )}
               
               <div className="flex justify-end pt-4">
                 {!isInitialSetup && (
