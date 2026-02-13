@@ -55,6 +55,20 @@ const LegacyClubRouteRedirect = () => {
   return <Navigate to={`/club/${clubId}`} replace />;
 };
 
+const ProfileSetupRedirectRoute = () => {
+  const { user, profile } = useAuth();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (profile?.profile_completed) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <ProfileSetup />;
+};
+
 function AppRoutes() {
   const { user, isLoading, isEmailVerified } = useAuth();
 
@@ -75,7 +89,7 @@ function AppRoutes() {
 
         <Route path="/landing" element={!user ? <Landing /> : <Navigate to="/" replace />} />
 
-        <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
+        <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetupRedirectRoute /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/profile/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/user/:userId" element={<ProtectedRoute><Profile /></ProtectedRoute>} />

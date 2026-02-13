@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       clubs: {
         Row: {
           created_at: string
@@ -449,6 +473,7 @@ export type Database = {
           location: string | null
           name: string | null
           projects: string | null
+          profile_completed: boolean
           role: string | null
         }
         Insert: {
@@ -461,6 +486,7 @@ export type Database = {
           location?: string | null
           name?: string | null
           projects?: string | null
+          profile_completed?: boolean
           role?: string | null
         }
         Update: {
@@ -473,6 +499,7 @@ export type Database = {
           location?: string | null
           name?: string | null
           projects?: string | null
+          profile_completed?: boolean
           role?: string | null
         }
         Relationships: []
